@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import {makeThumb, makeWatermark} from "@/lib/imaging";
 import {uploadBufferToBlob} from "@/lib/blob";
+import {NextResponse} from "next/server";
 
 export const runtime = 'nodejs'
 
@@ -20,6 +21,7 @@ async function markPhotoProcessingAsFailed(photo: {id: string, attempts: number}
 }
 
 export async function GET() {
+    const counters = {successfull: 0, failed: 0}
     const unprocessedPhotos = await prisma.$transaction(async (tx) => {
         const items = await tx.photo.findMany({
             where: { albumId: { not: null }, status: 'NEW' },
@@ -46,16 +48,16 @@ export async function GET() {
         if (!response.ok) {
             console.error("Failed to fetch original photo blob for processing.", { id: photo.id, response });
             await markPhotoProcessingAsFailed(photo)
+            counters.failed++;
             continue;
         }
 
         const buffer = Buffer.from(await response.arrayBuffer());
 
-        const [watermarkBuf, thumbnailBuf] = await Promise.all([makeWatermark(buffer), makeThumb(buffer)])
-
         const prefix = photo.albumId ? `albums/${photo.albumId}/` : undefined
 
         try {
+            const [watermarkBuf, thumbnailBuf] = await Promise.all([makeWatermark(buffer), makeThumb(buffer)])
             const [watermarkUrl, thumbnailUrl] = await Promise.all([
                 uploadBufferToBlob(watermarkBuf, prefix),
                 uploadBufferToBlob(thumbnailBuf, prefix),
@@ -67,8 +69,13 @@ export async function GET() {
             })
             console.log('Photo processed successfully', {id: photo.id});
         } catch (e) {
-            console.error('Failed to create watermark or thumbnail.', {id: photo.id, e})
+            console.error('Failed to create or upload watermark or thumbnail.', {id: photo.id, e})
             await markPhotoProcessingAsFailed(photo);
+            counters.failed++;
         }
+
+        counters.successfull++;
     }
+
+    return NextResponse.json(counters)
 }

@@ -1,50 +1,52 @@
-// src/lib/imaging.ts
 import sharp from 'sharp'
 
 export async function makeWatermark(input: Buffer) {
-    // base: limita o lado maior a ~1600px e remove metadados
-    const base = sharp(input).rotate().resize({ width: 1600, withoutEnlargement: true }).jpeg({ quality: 80, mozjpeg: true })
+    const { data: baseBuf, info } = await sharp(input)
+        .rotate()
+        .resize({ width: 1600, withoutEnlargement: true, fit: 'inside' })
+        .jpeg({ quality: 80, mozjpeg: true })
+        .toBuffer({ resolveWithObject: true })
 
-    // pega dimensões reais após o resize
-    const meta = await base.metadata()
-    const w = Math.max(600, meta.width ?? 1600)
-    const h = Math.max(400, meta.height ?? 1600)
+    const BW = info.width!
+    const BH = info.height!
 
-    // dimensões do “tijolo” do padrão (mais denso = watermark mais visível)
-    const cellW = Math.round(w / 3)         // 3 repetições na largura
-    const cellH = Math.round(h / 3.5)       // ~3–4 repetições na altura
-    const fontSize = Math.round(Math.min(cellH * 0.6, cellW * 0.35)) // proporcional ao bloco
-    const textY = Math.round(cellH * 0.7)   // posição do baseline dentro do bloco
+    const cellW = Math.round(BW / 3)
+    const cellH = Math.round(BH / 3.5)
+    const fontSize = Math.round(Math.min(cellH * 0.6, cellW * 0.35))
+    const textY = Math.round(cellH * 0.7)
     const strokeW = Math.max(2, Math.round(fontSize * 0.06))
 
-    // SVG com repetição, levemente diagonal, stroke escuro + fill claro (contraste em qualquer fundo)
-    const svg = Buffer.from(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+    const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${BW}" height="${BH}" viewBox="0 0 ${BW} ${BH}">
       <defs>
         <pattern id="wm" width="${cellW}" height="${cellH}" patternUnits="userSpaceOnUse" patternTransform="rotate(-28)">
           <text x="0" y="${textY}" font-size="${fontSize}" font-family="sans-serif"
             fill="#ffffff" fill-opacity="0.26"
             stroke="#000000" stroke-opacity="0.18" stroke-width="${strokeW}"
-            paint-order="stroke fill">
-            AMOSTRA
-          </text>
+            paint-order="stroke fill">AMOSTRA</text>
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#wm)"/>
     </svg>
-  `)
+  `
 
-    // compõe o SVG no centro (tamanho do SVG == tamanho da imagem ⇒ sem erro de dimensões)
-    const out = await base
-        .composite([{ input: svg, gravity: 'centre' }])
+    const overlayPng = await sharp(Buffer.from(svg), { density: 300 })
+        .resize({ width: BW, height: BH, fit: 'fill' }) // garante <= base
+        .png()
+        .toBuffer()
+
+    const out = await sharp(baseBuf)
+        .composite([{ input: overlayPng, left: 0, top: 0 }])
         .jpeg({ quality: 80, mozjpeg: true })
         .toBuffer()
 
     return out
 }
 
-
 export async function makeThumb(input: Buffer) {
-    // ~300px lado maior, baixa qualidade
-    return sharp(input).rotate().resize({ width: 300, withoutEnlargement: true }).jpeg({ quality: 60, mozjpeg: true }).toBuffer()
+    return sharp(input)
+        .rotate()
+        .resize({ width: 300, withoutEnlargement: true, fit: 'inside' })
+        .jpeg({ quality: 60, mozjpeg: true })
+        .toBuffer()
 }
