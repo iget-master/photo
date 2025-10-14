@@ -1,0 +1,110 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String?   @unique
+  emailVerified  DateTime?
+  image          String?
+  hashedPassword String?
+
+  albums Album[] // ← relação inversa
+}
+
+model Album {
+  id             String @id @default(cuid())
+  photographerId String
+  photographer   User   @relation(fields: [photographerId], references: [id], onDelete: Cascade)
+
+  albumName           String
+  pricePerPhotoCents  Int
+  coverPhotoUrl       String?
+  visitCount          Int      @default(0)
+  soldPhotos          Int      @default(0)
+  totalSoldValueCents Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  photos Photo[]
+  orders Order[]
+}
+
+model Photo {
+  id           String   @id @default(cuid())
+  albumId      String?
+  url          String
+  originalName String?
+  sizeBytes    Int?
+  createdAt    DateTime @default(now())
+  status       PhotoStatus @default(NEW)
+
+  processingAt DateTime?
+  attempts     Int @default(0)
+  publicId     String? @unique @default(nanoid(21))
+  urlWatermark String?
+  urlThumb     String?
+
+  orderItems OrderItem[]
+  album      Album?      @relation(fields: [albumId], references: [id], onDelete: SetNull)
+
+  @@index([albumId, createdAt])
+  @@index([createdAt])
+}
+
+enum PhotoStatus {
+  NEW
+  DONE
+  FAILED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELED
+  EXPIRED
+}
+
+enum PaymentMethod {
+  PIX
+  CARD
+}
+
+model Order {
+  id            String        @id @default(cuid())
+  albumId       String
+  album         Album         @relation(fields: [albumId], references: [id])
+  items         OrderItem[]
+  customerCpf   String?
+  customerEmail String?
+  totalCents    Int
+  status        OrderStatus   @default(PENDING)
+  paymentMethod PaymentMethod @default(PIX)
+  pixTxId       String?
+  pixPayload    String?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model OrderItem {
+  id             String   @id @default(cuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  photoId        String
+  photo          Photo    @relation(fields: [photoId], references: [id])
+  unitPriceCents Int
+  createdAt      DateTime @default(now())
+}
