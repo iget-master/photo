@@ -54,13 +54,13 @@ export async function GET() {
 
         const buffer = Buffer.from(await response.arrayBuffer());
 
-        const prefix = photo.albumId ? `albums/${photo.albumId}/` : undefined
+        const prefix = photo.albumId ? `albums/${photo.albumId}` : undefined
 
         try {
             const [watermarkBuf, thumbnailBuf] = await Promise.all([makeWatermark(buffer), makeThumb(buffer)])
             const [watermarkUrl, thumbnailUrl] = await Promise.all([
-                uploadBufferToBlob(watermarkBuf, prefix),
-                uploadBufferToBlob(thumbnailBuf, prefix),
+                uploadBufferToBlob(watermarkBuf, `${prefix}/wm/`),
+                uploadBufferToBlob(thumbnailBuf, `${prefix}/thumbnail/`),
             ])
 
             await prisma.photo.update({
