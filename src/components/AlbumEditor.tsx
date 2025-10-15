@@ -1,3 +1,4 @@
+// app/albums/[id]/edit/AlbumEditor.tsx
 'use client'
 
 import * as React from 'react'
@@ -9,9 +10,9 @@ import { CardContent, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Trash2, Upload, X } from 'lucide-react'
-import { upload } from '@vercel/blob/client'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
 import { Spinner } from '@/components/ui/spinner'
+import { useAlbumUploader } from '@/hooks/useAlbumUploader'
 
 const brlIntl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const FALLBACK =
@@ -22,6 +23,7 @@ function parseBRL(s: string) {
     const n = Number(s.replace(/\./g, '').replace(',', '.'))
     return Number.isFinite(n) ? n : 0
 }
+
 function human(bytes?: number) {
     if (!bytes && bytes !== 0) return ''
     const u = ['B', 'KB', 'MB', 'GB']; let v = bytes; let i = 0
@@ -30,10 +32,7 @@ function human(bytes?: number) {
 }
 
 // SafeImage com preload/decode para evitar flick ao trocar blob->url final
-export function SafeImage(
-    { src, alt, sizes = '160px' }:
-    { src: string; alt: string; sizes?: string }
-) {
+function SafeImage({ src, alt, sizes = '160px' }: { src: string; alt: string; sizes?: string }) {
     const [display, setDisplay] = React.useState(src || FALLBACK)
 
     React.useEffect(() => {
@@ -42,28 +41,22 @@ export function SafeImage(
 
         const img = new window.Image()
         img.src = src
-
         const done = () => { if (!canceled) setDisplay(src) }
 
         const canDecode = 'decode' in HTMLImageElement.prototype
-
         if (canDecode) {
-            ;(img as HTMLImageElement).decode()
-                .then(done)
-                .catch(done)
+            ;(img as HTMLImageElement).decode().then(done).catch(done)
         } else {
             const onLoad = () => done()
             const onError = () => done()
             img.addEventListener('load', onLoad, { once: true })
             img.addEventListener('error', onError, { once: true })
-            // cleanup
             return () => {
                 canceled = true
                 img.removeEventListener('load', onLoad)
                 img.removeEventListener('error', onError)
             }
         }
-
         return () => { canceled = true }
     }, [src])
 
@@ -83,12 +76,11 @@ type ExistingPhoto = {
     url: string
     size?: number
     originalName?: string
-    temp?: boolean
-    clientKey: string
 }
 
 type Initial = {
     id: string
+    new: boolean
     albumName: string
     pricePerPhotoBRL: string
     coverPhotoUrl: string | null
@@ -98,169 +90,117 @@ type Initial = {
 export default function AlbumEditor({ initial }: { initial: Initial }) {
     const router = useRouter()
 
+    const {
+        items: photos, inflight, progress,
+        addFiles, removeItem, clearAll, setItems,
+    } = useAlbumUploader(initial.id)
+
+    const [isNew, setIsNew] = React.useState(initial.new);
     const [albumName, setAlbumName] = React.useState(initial.albumName)
     const [priceBRL, setPriceBRL] = React.useState(initial.pricePerPhotoBRL)
     const [coverPhotoUrl, setCoverPhotoUrl] = React.useState<string | null>(initial.coverPhotoUrl)
-    const [photos, setPhotos] = React.useState<ExistingPhoto[]>(initial.photos) // já vem ordenado (desc)
     const [saving, setSaving] = React.useState(false)
-    const [uploading, setUploading] = React.useState(false)
-    const [progress, setProgress] = React.useState<Record<string, number>>({})
-    const inputRef = React.useRef<HTMLInputElement | null>(null)
+
     const [isDragging, setIsDragging] = React.useState(false)
-    const objectUrlsRef = React.useRef<Record<string, string>>({})
+    const inputRef = React.useRef<HTMLInputElement | null>(null)
 
+    // carrega as fotos iniciais no estado do hook
     React.useEffect(() => {
-        return () => {
-            Object.values(objectUrlsRef.current).forEach((u) => URL.revokeObjectURL(u))
-            objectUrlsRef.current = {}
-        }
-    }, [])
-
-    // ===== Upload
-    const persistNewPhotos = React.useCallback(async (uploaded: { tempKey: string; url: string; sizeBytes?: number; originalName?: string }[]) => {
-        const res = await fetch(`/api/albums/${initial.id}/photos`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                photos: uploaded.map(({ url, sizeBytes, originalName }) => ({ url, sizeBytes, originalName })),
-            }),
-        })
-        if (!res.ok) {
-            alert('Falha ao salvar fotos no banco.')
-            // remove os temporários da UI
-            setPhotos((prev) => prev.filter((p) => !uploaded.some((u) => u.tempKey === p.clientKey)))
-            uploaded.forEach(({ tempKey }) => {
-                const u = objectUrlsRef.current[tempKey]
-                if (u) URL.revokeObjectURL(u)
-                delete objectUrlsRef.current[tempKey]
-            })
-            return
-        }
-        const data = await res.json()
-        const created: ExistingPhoto[] = (data.photos ?? []).map((p: any) => ({
-            id: p.id,
-            url: p.url,
-            size: p.sizeBytes ?? undefined,
-            originalName: p.originalName ?? undefined,
-            temp: false,
-            clientKey: p.id,
-        }))
-
-        setPhotos((prev) => {
-            const next = [...prev]
-            for (const u of uploaded) {
-                const createdPhoto = created.find((c) => c.url === u.url)
-                if (!createdPhoto) continue
-                const idx = next.findIndex((p) => p.clientKey === u.tempKey)
-                if (idx !== -1) {
-                    const loc = objectUrlsRef.current[u.tempKey]
-                    if (loc) setTimeout(() => URL.revokeObjectURL(loc), 300)
-                    delete objectUrlsRef.current[u.tempKey]
-                    next[idx] = { ...next[idx], ...createdPhoto }
-                } else {
-                    next.unshift(createdPhoto) // fallback
-                }
-            }
-            return next
-        })
-
-        uploaded.forEach(({ tempKey }) => setProgress((m) => ({ ...m, [tempKey]: 100 })))
-    }, [initial.id])
-
-    const handleFiles = React.useCallback(async (files: FileList | null) => {
-        if (!files || files.length === 0) return
-        setUploading(true)
-
-        const selected = Array.from(files).filter((f) => f.type.startsWith('image/'))
-        const pending = selected.map((file) => {
-            const tempKey = `temp-${crypto.randomUUID()}`
-            const objectUrl = URL.createObjectURL(file)
-            objectUrlsRef.current[tempKey] = objectUrl
-            return { tempKey, file, objectUrl }
-        })
-
-        // 1) adiciona na UI (no topo) com preview e progress 0
-        setPhotos((prev) => [
-            ...pending.map(({ tempKey, objectUrl, file }) => ({
-                id: tempKey,
-                url: objectUrl,
-                size: file.size,
-                originalName: file.name,
-                temp: true,
-                clientKey: tempKey,
-            })),
-            ...prev,
-        ])
-
-        // 2) sobe para Blob com barra de progresso
-        const uploaded = await Promise.all(
-            pending.map(async ({ tempKey, file }) => {
-                const result = await upload(file.name, file, {
-                    access: 'public',
-                    handleUploadUrl: '/api/blob/upload',
-                    multipart: file.size > 4_500_000,
-                    onUploadProgress: ({ percentage }) => {
-                        const pct = Math.min(99, Math.max(0, Math.round(percentage)))
-                        setProgress((m) => ({ ...m, [tempKey]: pct }))
-                    },
-                })
-                return { tempKey, url: result.url, sizeBytes: file.size, originalName: file.name }
-            }),
+        setItems(
+            initial.photos.map((p) => ({
+                clientKey: p.id,     // clientKey == id persistido
+                tempUrl: p.url,
+                finalUrl: p.url,
+                photoId: p.id,
+                name: p.originalName ?? p.id,
+                size: p.size ?? 0,
+            }))
         )
+    }, [initial.photos, setItems])
 
-        // 3) persiste no Postgres e troca temp->final sem flick (SafeImage)
-        await persistNewPhotos(uploaded)
-        setUploading(false)
-    }, [persistNewPhotos])
-
+    // drag & drop
     const onDrop = React.useCallback((e: React.DragEvent) => {
         e.preventDefault(); setIsDragging(false)
-        void handleFiles(e.dataTransfer?.files ?? null)
-    }, [handleFiles])
+        if (e.dataTransfer?.files) addFiles(e.dataTransfer.files)
+    }, [addFiles])
     const onDragOver = React.useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true) }, [])
     const onDragLeave = React.useCallback(() => setIsDragging(false), [])
 
-    const removePhoto = React.useCallback(async (pid: string) => {
-        // não remove temp em upload
-        if (pid.startsWith('temp-')) return
+    // remover foto (chama API e tira do estado)
+    const onRemovePersisted = React.useCallback(async (pid: string) => {
+        // Não deixa remover enquanto envia
+        const isTemp = !photos.find((p) => p.clientKey === pid)?.photoId
+        if (isTemp || inflight > 0) return
+
         const res = await fetch(`/api/photos/${pid}`, { method: 'DELETE' })
         if (!res.ok) { alert('Falha ao excluir foto'); return }
-        setPhotos((prev) => {
-            const removed = prev.find((p) => p.id === pid)
-            const filtered = prev.filter((p) => p.id !== pid)
-            const wasCover = removed?.url && coverPhotoUrl === removed.url
-            const nextCover = wasCover ? (filtered[0]?.url ?? null) : coverPhotoUrl
+
+        // remove do estado e ajusta capa se necessário
+        setItems((prev) => {
+            const removed = prev.find((p) => p.clientKey === pid)
+            const filtered = prev.filter((p) => p.clientKey !== pid)
+            const wasCover = removed?.finalUrl && coverPhotoUrl === removed.finalUrl
+            const nextCover = wasCover ? (filtered[0]?.finalUrl ?? null) : coverPhotoUrl
             setCoverPhotoUrl(nextCover ?? null)
             return filtered
         })
-    }, [coverPhotoUrl])
+    }, [photos, inflight, coverPhotoUrl, setItems])
 
+    // escolher capa
     const setCoverById = React.useCallback((pid: string) => {
-        if (pid.startsWith('temp-')) return
-        const url = photos.find((p) => p.id === pid)?.url ?? null
-        setCoverPhotoUrl(url)
+        const p = photos.find((x) => x.clientKey === pid)
+        if (!p?.photoId || !p.finalUrl) return
+        setCoverPhotoUrl(p.finalUrl)
     }, [photos])
 
-    // ===== Salvar
+    // salvar
     const onSave = React.useCallback(async (e: React.FormEvent) => {
         e.preventDefault()
-        if (uploading) return
+        if (inflight > 0) return
         setSaving(true)
-        const res = await fetch(`/api/albums/${initial.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                albumName,
-                pricePerPhotoBRL: priceBRL || '0,00',
-                coverPhotoUrl,
-            }),
-        })
-        setSaving(false)
-        if (!res.ok) { alert('Não foi possível salvar na API.'); return }
-        router.push('/albums?updated=1')
-    }, [albumName, priceBRL, coverPhotoUrl, initial.id, router, uploading])
+        let response;
 
-    // ===== Form helpers BRL
+        if (isNew) {
+            response = await fetch(`/api/albums`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: initial.id,
+                    albumName,
+                    pricePerPhotoBRL: priceBRL || '0,00',
+                }),
+            })
+            setSaving(false)
+
+            if (response.ok) {
+                setIsNew(false)
+                router.replace(`/albums/${initial.id}/edit`)
+            } else {
+                alert('Não foi possível salvar na API.')
+            }
+
+        } else {
+            response = await fetch(`/api/albums/${initial.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    albumName,
+                    pricePerPhotoBRL: priceBRL || '0,00',
+                    coverPhotoUrl,
+                }),
+            })
+
+            if (response.ok) {
+                router.push('/albums?updated=1')
+            } else {
+                alert('Não foi possível salvar na API.')
+            }
+
+        }
+
+    }, [albumName, priceBRL, coverPhotoUrl, inflight, initial.id, router])
+
+    // helpers BRL
     const handlePriceChange = React.useCallback((raw: string) => {
         const digits = raw.replace(/\D/g, '')
         if (!digits) { setPriceBRL(''); return }
@@ -276,7 +216,7 @@ export default function AlbumEditor({ initial }: { initial: Initial }) {
     const totalPhotos = photos.length
     const numericPrice = parseBRL(priceBRL)
     const estimatedTotal = totalPhotos * numericPrice
-    const disabledAll = saving || uploading
+    const disabledAll = saving || inflight > 0
 
     return (
         <form onSubmit={onSave}>
@@ -305,7 +245,8 @@ export default function AlbumEditor({ initial }: { initial: Initial }) {
                     </div>
                 </div>
 
-                {/* Dropzone */}
+                {isNew ? (<h1 className="text-lg">* Finalize a criação do album para enviar fotos.</h1>) : (
+                <>
                 <div
                     onDrop={onDrop}
                     onDragOver={onDragOver}
@@ -318,16 +259,16 @@ export default function AlbumEditor({ initial }: { initial: Initial }) {
                     tabIndex={0}
                     onClick={() => inputRef.current?.click()}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click() }}
-                    aria-disabled={disabledAll}
+                    aria-disabled={disabledAll || isNew}
                 >
                     <input
                         ref={inputRef}
                         type="file"
-                        accept="image/*"
+                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                         multiple
                         className="hidden"
-                        onChange={(e) => { void handleFiles(e.target.files); e.currentTarget.value = '' }}
-                        disabled={disabledAll}
+                        onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = '' }}
+                        disabled={disabledAll || isNew}
                     />
                     <div className="mx-auto flex max-w-md flex-col items-center justify-center gap-3">
                         <div className="rounded-full border p-3"><Upload className="h-6 w-6" aria-hidden /></div>
@@ -346,8 +287,8 @@ export default function AlbumEditor({ initial }: { initial: Initial }) {
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => { setPhotos([]); setCoverPhotoUrl(null) }}
-                            disabled={photos.length === 0 || uploading}
+                            onClick={() => { clearAll(); setCoverPhotoUrl(null) }}
+                            disabled={photos.length === 0 || inflight > 0}
                         >
                             <Trash2 className="mr-2 h-4 w-4" /> Remover todas
                         </Button>
@@ -359,12 +300,13 @@ export default function AlbumEditor({ initial }: { initial: Initial }) {
                         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                             {photos.map((p) => {
                                 const pct = progress[p.clientKey]
-                                const isTemp = !!p.temp || p.id.startsWith('temp-')
-                                const isCover = coverPhotoUrl === p.url
+                                const isTemp = !p.photoId
+                                const url = p.finalUrl ?? p.tempUrl
+                                const isCover = coverPhotoUrl === p.finalUrl
                                 return (
                                     <li key={p.clientKey} className="group overflow-hidden rounded-xl border">
                                         <div className="relative h-40 w-full">
-                                            <SafeImage src={p.url} alt={p.originalName ?? p.id} sizes="160px" />
+                                            <SafeImage src={url} alt={p.name} sizes="160px" />
 
                                             {(isTemp || (typeof pct === 'number' && pct < 100)) && (
                                                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-black/35 backdrop-blur-[1px]">
@@ -389,8 +331,8 @@ export default function AlbumEditor({ initial }: { initial: Initial }) {
                                                 ) : (
                                                     <button
                                                         type="button"
-                                                        onClick={() => setCoverById(p.id)}
-                                                        disabled={isTemp || uploading}
+                                                        onClick={() => setCoverById(p.clientKey)}
+                                                        disabled={isTemp || inflight > 0}
                                                         className="rounded bg-black/70 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur hover:bg-black/80 disabled:opacity-50"
                                                         aria-label="Usar como capa"
                                                     >
@@ -401,18 +343,18 @@ export default function AlbumEditor({ initial }: { initial: Initial }) {
 
                                             <button
                                                 type="button"
-                                                aria-label={`Remover ${p.originalName ?? p.id}`}
-                                                onClick={() => removePhoto(p.id)}
+                                                aria-label={`Remover ${p.name}`}
+                                                onClick={() => isTemp ? removeItem(p.clientKey) : onRemovePersisted(p.clientKey)}
                                                 className="absolute right-2 top-2 z-20 rounded-full bg-black/70 p-1 text-white opacity-0 transition group-hover:opacity-100 disabled:opacity-50"
-                                                disabled={isTemp || uploading}
+                                                disabled={inflight > 0}
                                             >
                                                 <X className="h-4 w-4" />
                                             </button>
                                         </div>
 
                                         <div className="flex items-center justify-between gap-2 border-t bg-muted/60 px-2 py-1 text-[11px] text-muted-foreground">
-                      <span className="line-clamp-1 break-all" title={p.originalName ?? p.id}>
-                        {p.originalName ?? (isTemp ? 'Enviando…' : p.id)}
+                      <span className="line-clamp-1 break-all" title={p.name}>
+                        {p.name}
                       </span>
                                             <span className="shrink-0">{human(p.size)}</span>
                                         </div>
@@ -422,16 +364,18 @@ export default function AlbumEditor({ initial }: { initial: Initial }) {
                         </ul>
                     )}
                 </div>
+                </>
+                )}
             </CardContent>
 
             <CardFooter className="flex justify-end gap-2">
                 <Button asChild variant="outline"><Link href={`/albums`}>Cancelar</Link></Button>
                 <Button type="submit" disabled={disabledAll}>
-                    {saving ? 'Salvando…' : uploading ? 'Aguarde envio…' : 'Salvar alterações'}
+                    {saving ? (isNew ? 'Criando…' : 'Salvando…') : inflight > 0 ? 'Aguarde envio…' : (isNew ? 'Criar' : 'Salvar alterações')}
                 </Button>
             </CardFooter>
 
-            <LoadingOverlay show={saving} label="Salvando alterações…" />
+            <LoadingOverlay show={saving} label={isNew ? "Criando album…" : "Salvando alterações…"} />
         </form>
     )
 }

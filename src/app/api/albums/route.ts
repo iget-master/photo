@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import cuid from "cuid";
 
 export const runtime = 'nodejs'
 
@@ -78,20 +79,25 @@ export async function POST(req: Request) {
 
         const body = await req.json()
         const {
+            id,
             albumName,
             pricePerPhotoBRL,
             photoIds,
             coverPhotoUrl,
         }: {
+            id?: string,
             albumName?: string
             pricePerPhotoBRL?: string
             photoIds?: string[]
             coverPhotoUrl?: string | null
         } = body ?? {}
 
-        // --- validações ---
         if (typeof albumName !== 'string' || albumName.trim().length < 1) {
             return NextResponse.json({ error: 'albumName é obrigatório.' }, { status: 400 })
+        }
+
+        if (typeof id !== 'string' || !cuid.isCuid(id)) {
+            return NextResponse.json({ error: 'é obrigatório fornecer um cuid válido' }, { status: 400 })
         }
 
         let pricePerPhotoCents: number
@@ -104,6 +110,7 @@ export async function POST(req: Request) {
         // --- cria álbum ---
         const album = await prisma.album.create({
             data: {
+                id,
                 albumName: albumName.trim(),
                 pricePerPhotoCents,
                 coverPhotoUrl: typeof coverPhotoUrl === 'string' ? coverPhotoUrl : coverPhotoUrl ?? null,

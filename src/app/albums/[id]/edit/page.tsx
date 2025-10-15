@@ -6,7 +6,8 @@ import { notFound, redirect } from 'next/navigation'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import AlbumEditor from './AlbumEditor'
+import AlbumEditor from '@/components/AlbumEditor'
+import cuid from "cuid";
 
 export const dynamic = 'force-dynamic'
 
@@ -18,45 +19,63 @@ function centsToBRL(cents: number | null | undefined) {
 export default async function EditAlbumPage({
                                                 params,
                                             }: {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }) {
+    const { id } = await params;
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) redirect('/auth/signin')
 
-    const album = await prisma.album.findFirst({
-        where: { id: params.id, photographerId: session.user.id },
-        include: {
-            photos: {
-                orderBy: { createdAt: 'desc' }, // mais recentes primeiro
-                select: { id: true, url: true, sizeBytes: true, originalName: true },
+    let initialData;
+
+    if ( id === 'new') {
+        initialData = {
+            id: cuid(),
+            new: true,
+            albumName: '',
+            pricePerPhotoBRL: '0',
+            coverPhotoUrl: null,
+            photos: [],
+        }
+    } else {
+        const album = await prisma.album.findFirst({
+            where: { id, photographerId: session.user.id },
+            include: {
+                photos: {
+                    orderBy: { id: 'desc' },
+                    select: { id: true, url: true, sizeBytes: true, originalName: true },
+                },
             },
-        },
-    })
+        })
 
-    if (!album) {
-        notFound()
+        if (!album) {
+            notFound()
+        }
+
+        initialData = {
+            id: album.id,
+            new: false,
+            albumName: album.albumName,
+            pricePerPhotoBRL: centsToBRL(album.pricePerPhotoCents),
+            coverPhotoUrl: album.coverPhotoUrl ?? null,
+            photos: album.photos.map((p) => ({
+                id: p.id,
+                url: p.url,
+                size: p.sizeBytes ?? undefined,
+                originalName: p.originalName ?? undefined,
+                clientKey: p.id,
+                temp: false,
+            })),
+        }
     }
 
-    const initialData = {
-        id: album.id,
-        albumName: album.albumName,
-        pricePerPhotoBRL: centsToBRL(album.pricePerPhotoCents),
-        coverPhotoUrl: album.coverPhotoUrl ?? null,
-        photos: album.photos.map((p) => ({
-            id: p.id,
-            url: p.url,
-            size: p.sizeBytes ?? undefined,
-            originalName: p.originalName ?? undefined,
-            clientKey: p.id,
-            temp: false,
-        })),
-    }
+
+
 
     return (
         <div className="mx-auto max-w-6xl p-6 space-y-6">
             <div className="flex items-center justify-between gap-3">
                 <h1 className="truncate text-2xl font-semibold tracking-tight">
-                    {`Editar álbum — ${album.albumName}`}
+                    {initialData.new ? `Criar novo álbum` : `Editar álbum — ${initialData.albumName}`}
                 </h1>
                 <div className="flex gap-2">
                     <Button asChild variant="outline"><Link href="/albums">Voltar</Link></Button>
@@ -68,7 +87,6 @@ export default async function EditAlbumPage({
                     <CardTitle className="text-lg">Dados do álbum</CardTitle>
                 </CardHeader>
 
-                {/* Client Component com toda a interação */}
                 <AlbumEditor initial={initialData} />
             </Card>
         </div>

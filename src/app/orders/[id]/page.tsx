@@ -125,8 +125,8 @@ export default async function OrderPage({ params }: PageProps) {
                                 </a>
                                 <div className="flex items-center justify-end gap-2 border-t p-2">
                                     <a
-                                        href={p.downloadUrl}
-                                        download={p.originalName ?? undefined}
+                                        href={`/photo/${p.id}/download`}
+                                        download
                                         className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium hover:bg-gray-50"
                                     >
                                         <Download className="h-3.5 w-3.5" aria-hidden />
