@@ -34,7 +34,7 @@ export async function PATCH(
 
         const albumBelongsToUser = await prisma.album.count({where: { id: albumId, photographerId: session!.user.id }}) === 1
 
-        if (!albumBelongsToUser) {
+        if (!session?.user || !albumBelongsToUser) {
             return NextResponse.json({reason: 'Album doesn\'t belongs to you' }, {status: 403})
         }
 
@@ -50,6 +50,7 @@ export async function PATCH(
                 prisma.photo.create({
                     data: {
                         id,
+                        ownerUserId: session.user.id,
                         albumId,
                         url,
                         sizeBytes: sizeBytes ?? null,
