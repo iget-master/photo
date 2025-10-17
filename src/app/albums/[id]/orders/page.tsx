@@ -2,7 +2,7 @@
 import prisma from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { redirect } from 'next/navigation'
+import {notFound, redirect} from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import ApproveButton from './approve-button'
@@ -17,18 +17,19 @@ export default async function AlbumOrdersPage(
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) redirect('/auth/signin')
 
-    // garante posse do álbum
     const album = await prisma.album.findFirst({
         where: { id: id, photographerId: session.user.id },
         select: { id: true, albumName: true },
     })
-    if (!album) redirect('/albums')
+    if (!album) return notFound();
 
     const orders = await prisma.order.findMany({
         where: { albumId: album.id },
         orderBy: { createdAt: 'desc' },
         include: { items: true },
-    })
+    });
+
+    if (!orders) return notFound();
 
     return (
         <div className="mx-auto max-w-6xl p-6 space-y-6">
