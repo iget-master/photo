@@ -35,7 +35,6 @@ export default function RegisterPage() {
         try {
             setLoading(true)
 
-            // 1) cria o usuário
             const res = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -49,7 +48,6 @@ export default function RegisterPage() {
                 return
             }
 
-            // 2) login automático (Credentials)
             const signin = await signIn('credentials', {
                 redirect: false,
                 email,
@@ -60,7 +58,6 @@ export default function RegisterPage() {
             setLoading(false)
 
             if (!signin || signin.error) {
-                // se falhar por algum motivo, caia para a tela de login com banner
                 router.push('/login?registered=1')
                 return
             }
@@ -87,7 +84,7 @@ export default function RegisterPage() {
                 <CardHeader>
                     <CardTitle className="text-2xl">Criar conta</CardTitle>
                     <p className="text-sm text-muted-foreground">
-                        Cadastre-se e entraremos automaticamente.
+                        Crie sua conta grátis e comece a vender suas fotos!
                     </p>
                 </CardHeader>
 
@@ -166,15 +163,7 @@ export default function RegisterPage() {
                         {error && <p className="text-sm text-red-600">{error}</p>}
                     </CardContent>
 
-                    <CardFooter className="flex justify-between">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => history.back()}
-                            disabled={loading}
-                        >
-                            Voltar
-                        </Button>
+                    <CardFooter className="flex justify-end mt-4">
                         <Button type="submit" disabled={disabled}>
                             {loading ? 'Criando e entrando…' : 'Criar conta'}
                         </Button>
