@@ -14,6 +14,7 @@ export async function PATCH(
     const { orderId } = await context.params
 
     const session = await getServerSession(authOptions)
+
     if (!session?.user?.id) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -30,7 +31,7 @@ export async function PATCH(
                 select: {
                     id: true,
                     albumName: true,
-                    photographer: { select: { name: true } }
+                    photographer: { select: { id: true, name: true } }
                 }
             },
             _count: {
@@ -38,7 +39,12 @@ export async function PATCH(
             },
         },
     })
+
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+    if (order.album.photographer.id !== session.user.id) {
+        return NextResponse.json({reason: 'Album doesn\'t belongs to you' }, {status: 403})
+    }
 
     if (order.status !== 'PAID') {
         await prisma.order.update({

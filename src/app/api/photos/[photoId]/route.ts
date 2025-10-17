@@ -16,13 +16,18 @@ export async function DELETE(
 
     const photo = await prisma.photo.findUnique({
         where: { id: photoId },
-        include: { album: { select: { id: true, photographerId: true, coverPhotoUrl: true } } },
+        include: { ownerUser: { select: { id: true }}, album: { select: { id: true, photographerId: true, coverPhotoUrl: true } } },
     })
-    if (!photo || !photo.album || photo.album.photographerId !== (session.user as any).id) {
+
+    if (!photo) {
         return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    const result = prisma.$transaction(async(transaction) => {
+    if (photo.ownerUser.id !== session.user.id) {
+        return NextResponse.json({ error: "Photo doesn't belongs to you." }, { status: 403 });
+    }
+
+    const deleted = await prisma.$transaction(async(transaction) => {
         if (photo.url === photo.album?.coverPhotoUrl) {
             await transaction.album.update({
                 where: { id: photo.album.id },
@@ -36,13 +41,17 @@ export async function DELETE(
 
         if (salesCount) {
             await transaction.photo.update({where: { id: photoId }, data: { deletedAt: new Date() }})
+            return false;
         } else {
             await transaction.photo.delete({ where: { id: photoId } })
+            return true;
         }
     })
 
-    const urls = [photo.url as string | null, photo.urlWatermark, photo.urlThumb].filter(Boolean) as string[]
-    await Promise.all(urls.map(async (u) => { try { await del(u) } catch {} }))
+    if (deleted) {
+        const urls = [photo.url as string | null, photo.urlWatermark, photo.urlThumb].filter(Boolean) as string[]
+        await Promise.all(urls.map(async (u) => { try { await del(u) } catch {} }))
+    }
 
     return NextResponse.json({ ok: true })
 }

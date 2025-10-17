@@ -21,13 +21,14 @@ model User {
   image          String?
   hashedPassword String?
 
-  albums Album[] // ← relação inversa
+  albums Album[]
+  Photo Photo[]
 }
 
 model Album {
   id             String @id @default(cuid())
   photographerId String
-  photographer   User   @relation(fields: [photographerId], references: [id], onDelete: Cascade)
+  photographer   User   @relation(fields: [photographerId], references: [id], onDelete: Restrict)
 
   albumName           String
   pricePerPhotoCents  Int
@@ -45,6 +46,7 @@ model Album {
 model Photo {
   id           String   @id @default(cuid())
   albumId      String?
+  ownerUserId  String
   url          String
   originalName String?
   sizeBytes    Int?
@@ -59,6 +61,8 @@ model Photo {
 
   orderItems OrderItem[]
   album      Album?      @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  ownerUser  User        @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+
   deletedAt DateTime?
 
   @@index([albumId, createdAt])
@@ -86,7 +90,7 @@ enum PaymentMethod {
 model Order {
   id            String        @id @default(cuid())
   albumId       String
-  album         Album         @relation(fields: [albumId], references: [id])
+  album         Album         @relation(fields: [albumId], references: [id], onDelete: Restrict)
   items         OrderItem[]
   customerCpf   String?
   customerEmail String?

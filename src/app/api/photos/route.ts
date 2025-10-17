@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import {getServerSession} from "next-auth";
+import {authOptions} from "@/lib/auth";
 
 export const runtime = 'nodejs'
 
@@ -9,6 +11,9 @@ export const runtime = 'nodejs'
  * Cria foto órfã (albumId null). Retorna { id, url, originalName, sizeBytes, createdAt }
  */
 export async function POST(req: Request) {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
     try {
         const { url, sizeBytes, originalName } = (await req.json()) as {
             url?: string
@@ -20,7 +25,7 @@ export async function POST(req: Request) {
         }
 
         const photo = await prisma.photo.create({
-            data: { url, sizeBytes: sizeBytes ?? null, originalName: originalName ?? null, albumId: null },
+            data: { url, sizeBytes: sizeBytes ?? null, originalName: originalName ?? null, albumId: null, ownerUserId: session.user.id },
             select: { id: true, url: true, originalName: true, sizeBytes: true, createdAt: true },
         })
 

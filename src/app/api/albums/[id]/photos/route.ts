@@ -32,22 +32,19 @@ export async function PATCH(
         const session = await getServerSession(authOptions)
         const { id: albumId } = await context.params
 
+        const albumBelongsToUser = await prisma.album.count({where: { id: albumId, photographerId: session!.user.id }}) === 1
+
+        if (!albumBelongsToUser) {
+            return NextResponse.json({reason: 'Album doesn\'t belongs to you' }, {status: 403})
+        }
+
         const body = (await req.json()) as Body
         const { photos } = body ?? {}
-
-        // autorização
-        const owns = await prisma.album.count({
-            where: { id: albumId, photographerId: session!.user.id },
-        })
-        if (owns !== 1) {
-            return NextResponse.json({ reason: "Album doesn't belongs to you" }, { status: 403 })
-        }
 
         if (!Array.isArray(photos) || photos.length === 0) {
             return NextResponse.json({ photos: [] }, { status: 201 })
         }
 
-        // cria em transação
         await prisma.$transaction(
             photos.map(({ id, url, sizeBytes, originalName }) =>
                 prisma.photo.create({
@@ -62,7 +59,6 @@ export async function PATCH(
             ),
         )
 
-        // prepara retorno (lista atualizada do álbum)
         const rows = await prisma.photo.findMany({
             where: { albumId },
             select: {
