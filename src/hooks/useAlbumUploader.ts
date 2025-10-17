@@ -51,7 +51,7 @@ export function useAlbumUploader(albumId: string, initialPhotos: Array<Photo>) {
             revokeObjectURLByPhotoId(photoId);
             return previousPhoto.filter((p) => p.id !== photoId)
         })
-    }, [])
+    }, [revokeObjectURLByPhotoId])
 
     const addFiles = React.useCallback(async (files: FileList | File[]) => {
         const arr = Array.from(files || [])
@@ -153,7 +153,7 @@ export function useAlbumUploader(albumId: string, initialPhotos: Array<Photo>) {
                 }
             })
         )
-    }, [albumId])
+    }, [albumId, removePhoto, revokeObjectURLByPhotoId])
 
     const clearAll = React.useCallback(() => {
         setPhotos((prev) => {
@@ -163,7 +163,7 @@ export function useAlbumUploader(albumId: string, initialPhotos: Array<Photo>) {
             return []
         })
         setProgress({})
-    }, [])
+    }, [revokeObjectURLByPhotoId])
 
     return {
         photos,

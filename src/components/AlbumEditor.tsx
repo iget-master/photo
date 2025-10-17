@@ -1,4 +1,3 @@
-// app/albums/[id]/edit/AlbumEditor.tsx
 'use client'
 
 import * as React from 'react'
@@ -13,7 +12,6 @@ import {Clock, Trash2, Upload, Wallpaper, X} from 'lucide-react'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
 import { Spinner } from '@/components/ui/spinner'
 import { useAlbumUploader } from '@/hooks/useAlbumUploader'
-import {WithRequired} from "@/types/utils";
 import {centsToBRL} from "@/helpers/centsToBRL";
 
 const brlIntl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -137,7 +135,7 @@ export default function AlbumEditor({ initial }: { initial: InitialAlbum }) {
         const removed = photos.find((p) => p.id === photoId);
         setCoverPhotoUrl((current) => (current === removed?.url) ? '' : current)
         removePhoto(photoId);
-    }, [photos, inflight, coverPhotoUrl, setPhotos])
+    }, [photos, inflight, setPhotos, removePhoto])
 
     const setCoverPhoto = React.useCallback((photoId: string) => {
         const photo = photos.find((x) => x.id === photoId)
@@ -191,7 +189,7 @@ export default function AlbumEditor({ initial }: { initial: InitialAlbum }) {
 
         }
 
-    }, [albumName, priceBRL, coverPhotoUrl, inflight, initial.id, router])
+    }, [albumName, priceBRL, coverPhotoUrl, inflight, initial.id, router, isNew])
 
     // helpers BRL
     const handlePriceChange = React.useCallback((raw: string) => {

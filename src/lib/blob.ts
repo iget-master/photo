@@ -1,6 +1,6 @@
 // src/lib/blob.ts
 import crypto from 'crypto'
-import { put, del } from '@vercel/blob'
+import { put } from '@vercel/blob'
 
 export function randomKey(prefix?: string) {
     const bytes = crypto.randomBytes(16).toString('hex') // 128 bits

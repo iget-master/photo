@@ -1,18 +1,13 @@
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
     Camera,
-    Bolt,
     Wallet,
     ScanFace as Face,
     CheckCircle2,
     Shield,
-    Sparkles,
-    Clock,
     Rocket,
     QrCode,
-    ChevronRight,
     ArrowRight,
     Medal, LogIn
 } from "lucide-react";

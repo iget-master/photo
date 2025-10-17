@@ -64,7 +64,7 @@ export const authOptions: NextAuthOptions = {
          * - aceita URLs absolutas somente se forem do mesmo host
          * - fallback para baseUrl
          */
-        async redirect({ url, baseUrl: _ignored }) {
+        async redirect({ url }) {
             try {
                 // Caminho relativo
                 if (url.startsWith('/')) return baseUrl + url

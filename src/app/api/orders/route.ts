@@ -1,4 +1,3 @@
-// app/api/orders/route.ts
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 
@@ -73,7 +72,7 @@ export async function POST(req: Request) {
         })
 
         return NextResponse.json({ orderId: order.id })
-    } catch (e) {
+    } catch {
         return NextResponse.json({ error: 'Falha ao criar o pedido.' }, { status: 500 })
     }
 }
