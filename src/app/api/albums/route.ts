@@ -15,7 +15,7 @@ export async function GET() {
     const rows = await prisma.album.findMany({
         where: { photographerId: session.user.id },
         orderBy: { createdAt: 'desc' },
-        include: { _count: { select: { photos: true } } },
+        include: { _count: { select: { photos: { where: { deletedAt: null } } } } },
     })
 
     const data = rows.map(a => ({

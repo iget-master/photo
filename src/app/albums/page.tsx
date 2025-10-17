@@ -1,4 +1,3 @@
-// app/albums/page.tsx
 import Image from 'next/image'
 import Link from 'next/link'
 import prisma from '@/lib/prisma'
@@ -7,7 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import SortBar from './sort-bar'
 import { Link as LinkIcon, Receipt, Pencil } from 'lucide-react'
 
@@ -50,7 +49,7 @@ async function getAlbumsFor(userId: string): Promise<Row[]> {
     const rows = await prisma.album.findMany({
         where: { photographerId: userId },
         orderBy: { updatedAt: 'desc' },
-        include: { _count: { select: { photos: true } } },
+        include: { _count: { select: { photos: { where: { deletedAt: null }} } } },
     })
 
     return rows.map((a) => {
@@ -174,15 +173,13 @@ export default async function AlbumsPage({
                 </CardHeader>
                 <CardContent>
                     <Table>
-                        <TableCaption>Lista de álbuns do fotógrafo atual.</TableCaption>
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[42%]">Álbum</TableHead>
                                 <TableHead className="text-right">Fotos</TableHead>
                                 <TableHead className="text-right">Visitas</TableHead>
-                                <TableHead className="text-right">Vendidas</TableHead>
-                                <TableHead className="text-right">Conversão</TableHead>
-                                <TableHead className="text-right">Total Vendido</TableHead>
+                                <TableHead className="text-right">Fotos vendidas</TableHead>
+                                <TableHead className="text-right">Faturamento</TableHead>
                                 <TableHead className="text-right">Ações</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -221,8 +218,7 @@ export default async function AlbumsPage({
                                         </TableCell>
                                         <TableCell className="text-right">{photos.toLocaleString('pt-BR')}</TableCell>
                                         <TableCell className="text-right">{visits.toLocaleString('pt-BR')}</TableCell>
-                                        <TableCell className="text-right">{sold.toLocaleString('pt-BR')}</TableCell>
-                                        <TableCell className="text-right">{conversionRate(sold, photos)}</TableCell>
+                                        <TableCell className="text-right">{sold.toLocaleString('pt-BR')} ({conversionRate(sold, photos)})</TableCell>
                                         <TableCell className="text-right">{brl.format(revenue)}</TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex items-center justify-end gap-1">
@@ -235,7 +231,7 @@ export default async function AlbumsPage({
                                                     aria-label="Abrir página pública"
                                                     title="Abrir página pública"
                                                 >
-                                                    <Link href={`/p/${album.id}`}>
+                                                    <Link href={`/public/album/${album.id}`}>
                                                         <LinkIcon className="h-5 w-5" />
                                                     </Link>
                                                 </Button>

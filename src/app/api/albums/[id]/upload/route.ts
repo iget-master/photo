@@ -21,7 +21,7 @@ function escapeRegExp(s: string) {
 export function buildPathRegex(albumId: string) {
     const aid = escapeRegExp(albumId)
     return new RegExp(
-        `^albums/${aid}/raw/[A-Za-z0-9_-]{21}/[A-Za-z0-9][A-Za-z0-9 ._-]*\\.(?:jpg|png|webp)$`,
+        `^albums/${aid}/raw/[A-Za-z0-9_-]{21}/[A-Za-z0-9][A-Za-z0-9 ._-]*\\.(?:jpeg|jpg|png|webp)$`,
         'i'
     )
 }

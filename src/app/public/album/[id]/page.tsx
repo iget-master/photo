@@ -1,4 +1,3 @@
-// app/p/[id]/page.tsx
 import prisma from '@/lib/prisma'
 import AlbumClient from './AlbumClient'
 
@@ -21,7 +20,7 @@ export default async function Page({
             pricePerPhotoCents: true,
             coverPhotoUrl: true,
             photos: {
-                select: { id: true, url: true, originalName: true },
+                select: { id: true, urlThumb: true, urlWatermark: true, originalName: true },
                 orderBy: { createdAt: 'asc' },
             },
         },

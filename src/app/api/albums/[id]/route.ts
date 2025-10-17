@@ -13,6 +13,7 @@ export async function GET(
         where: { id },
         include: {
             photos: {
+                where: { deletedAt: null },
                 orderBy: { createdAt: 'desc' },
                 select: { id: true, url: true, sizeBytes: true, originalName: true, createdAt: true },
             },

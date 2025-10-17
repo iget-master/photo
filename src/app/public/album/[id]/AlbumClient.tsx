@@ -9,14 +9,20 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import PixQRCode from '@/components/PixQRCode'
+import {Star} from "lucide-react";
 
-type PhotoDTO = { id: string; url: string; originalName: string | null }
+type Photo = {
+    id: string;
+    urlThumb: string | null;
+    urlWatermark: string | null;
+    originalName: string | null
+}
 
 type Props = {
     albumId: string
     albumName: string
     unitPriceBRL: number
-    photos: PhotoDTO[]
+    photos: Photo[]
     pixPayload: string | null
 }
 
@@ -25,7 +31,7 @@ const LS_KEY = (albumId: string) => `album:${albumId}:selected`
 export default function AlbumClient({ albumId, albumName, unitPriceBRL, photos, pixPayload: pixPayloadInitial }: Props) {
     const [tab, setTab] = React.useState<'all' | 'selected'>('all')
     const [selected, setSelected] = React.useState<Set<string>>(new Set())
-    const [modalPhoto, setModalPhoto] = React.useState<PhotoDTO | null>(null)
+    const [modalPhoto, setModalPhoto] = React.useState<Photo | null>(null)
 
     // compra
     const [buyOpen, setBuyOpen] = React.useState(false)
@@ -173,8 +179,8 @@ export default function AlbumClient({ albumId, albumName, unitPriceBRL, photos, 
                     {modalPhoto && (
                         <div className="relative aspect-[3/2] w-full overflow-hidden rounded-lg bg-black">
                             <Image
-                                src={modalPhoto.url}
-                                alt={modalPhoto.originalName ?? 'foto'}
+                                src={modalPhoto.urlWatermark!}
+                                alt={modalPhoto.originalName ?? ''}
                                 fill
                                 sizes="(max-width: 768px) 100vw, 1024px"
                                 className="object-contain"
@@ -284,26 +290,30 @@ function PhotoGrid({
                        onToggle,
                        onOpenModal,
                    }: {
-    photos: PhotoDTO[]
+    photos: Photo[]
     isSelected: (id: string) => boolean
     onToggle: (id: string) => void
-    onOpenModal: (photo: PhotoDTO) => void
+    onOpenModal: (photo: Photo) => void
 }) {
     return (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {photos.map((p) => {
-                const sel = isSelected(p.id)
+            {photos.map((photo) => {
+                if (!photo.urlThumb || !photo.urlWatermark) {
+                    return;
+                }
+
+                const sel = isSelected(photo.id)
                 return (
-                    <div key={p.id} className="group relative overflow-hidden rounded-lg border">
+                    <div key={photo.id} className="group relative overflow-hidden rounded-lg border">
                         <button
                             type="button"
-                            onClick={() => onOpenModal(p)}
+                            onClick={() => onOpenModal(photo)}
                             className="relative block aspect-[3/2] w-full"
-                            aria-label={`Abrir ${p.originalName ?? 'foto'}`}
+                            aria-label={`Abrir ${photo.originalName ?? 'foto'}`}
                         >
                             <Image
-                                src={p.url}
-                                alt={p.originalName ?? 'foto'}
+                                src={photo.urlThumb}
+                                alt={photo.originalName ?? 'foto'}
                                 fill
                                 sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                                 className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
@@ -314,13 +324,11 @@ function PhotoGrid({
 
                         <button
                             type="button"
-                            onClick={() => onToggle(p.id)}
+                            onClick={() => onToggle(photo.id)}
                             className="absolute right-2 top-2 inline-flex items-center justify-center rounded-full border border-white/30 bg-black/50 p-2 backdrop-blur transition hover:bg-black/70"
                             aria-label={sel ? 'Remover da seleção' : 'Selecionar'}
                         >
-                            <svg viewBox="0 0 24 24" className={`h-5 w-5 ${sel ? 'fill-yellow-400 stroke-yellow-400' : 'fill-transparent stroke-white'}`} strokeWidth="2">
-                                <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.62L12 2 9.19 8.62 2 9.24l5.46 4.73L5.82 21z" />
-                            </svg>
+                            <Star color={sel ? '#FDC700FF' : 'white'} strokeWidth={sel ? 2 : 1} fill={sel ? '#FDC700FF' : 'transparent'}/>
                         </button>
                     </div>
                 )

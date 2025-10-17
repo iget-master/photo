@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import {makeThumb, makeWatermark} from "@/lib/imaging";
 import {uploadBufferToBlob} from "@/lib/blob";
-import {NextResponse} from "next/server";
+import {NextRequest, NextResponse} from "next/server";
 
 export const runtime = 'nodejs'
 
@@ -20,15 +20,31 @@ async function markPhotoProcessingAsFailed(photo: {id: string, attempts: number}
     })
 }
 
-export async function GET() {
+export async function POST(
+    request: NextRequest
+) {
+    const body = await request.json();
+    const only = body.only ?? null;
+
     const counters = {successfull: 0, failed: 0}
     const unprocessedPhotos = await prisma.$transaction(async (tx) => {
-        const items = await tx.photo.findMany({
-            where: { albumId: { not: null }, status: 'NEW' },
-            orderBy: { createdAt: 'asc' },
-            take: 10,
-            select: { id: true, albumId: true, url: true, attempts: true },
-        });
+        let items;
+
+        if (only) {
+            items = await tx.photo.findMany({
+                where: { id: { in: only }, status: 'NEW' },
+                orderBy: { createdAt: 'asc' },
+                take: 10,
+                select: { id: true, albumId: true, url: true, attempts: true },
+            });
+        } else {
+            items = await tx.photo.findMany({
+                where: { albumId: { not: null }, status: 'NEW' },
+                orderBy: { createdAt: 'asc' },
+                take: 10,
+                select: { id: true, albumId: true, url: true, attempts: true },
+            });
+        }
 
         if (items.length === 0) return [];
 

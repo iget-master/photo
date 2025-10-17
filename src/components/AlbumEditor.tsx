@@ -9,10 +9,12 @@ import { Button } from '@/components/ui/button'
 import { CardContent, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Trash2, Upload, X } from 'lucide-react'
+import {Clock, Trash2, Upload, Wallpaper, X} from 'lucide-react'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
 import { Spinner } from '@/components/ui/spinner'
 import { useAlbumUploader } from '@/hooks/useAlbumUploader'
+import {WithRequired} from "@/types/utils";
+import {centsToBRL} from "@/helpers/centsToBRL";
 
 const brlIntl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const FALLBACK =
@@ -32,7 +34,7 @@ function human(bytes?: number) {
 }
 
 // SafeImage com preload/decode para evitar flick ao trocar blob->url final
-function SafeImage({ src, alt, sizes = '160px' }: { src: string; alt: string; sizes?: string }) {
+function SafeImage({ src, alt, sizes = '160px' }: { src?: string; alt?: string; sizes?: string }) {
     const [display, setDisplay] = React.useState(src || FALLBACK)
 
     React.useEffect(() => {
@@ -63,7 +65,7 @@ function SafeImage({ src, alt, sizes = '160px' }: { src: string; alt: string; si
     return (
         <Image
             src={display || FALLBACK}
-            alt={alt}
+            alt={alt ?? ''}
             fill
             sizes={sizes}
             className="object-cover transition-opacity duration-300"
@@ -71,52 +73,48 @@ function SafeImage({ src, alt, sizes = '160px' }: { src: string; alt: string; si
     )
 }
 
-type ExistingPhoto = {
+type Photo = {
     id: string
+    originalName?: string|null
     url: string
-    size?: number
-    originalName?: string
+    urlWatermark?: string|null
+    urlThumb?: string|null
+    sizeBytes?: number|null
+    meta: {
+        new: boolean
+        temporaryUrl?: string
+    }
 }
 
-type Initial = {
+export type InitialAlbum = {
     id: string
-    new: boolean
-    albumName: string
-    pricePerPhotoBRL: string
-    coverPhotoUrl: string | null
-    photos: ExistingPhoto[]
+    albumName?: string
+    pricePerPhotoCents?: number
+    coverPhotoUrl?: string|null
+    photos: Photo[]
+    meta: {
+        new: boolean
+    }
 }
 
-export default function AlbumEditor({ initial }: { initial: Initial }) {
+
+
+export default function AlbumEditor({ initial }: { initial: InitialAlbum }) {
     const router = useRouter()
 
     const {
-        items: photos, inflight, progress,
-        addFiles, removeItem, clearAll, setItems,
-    } = useAlbumUploader(initial.id)
+        photos, inflight, progress,
+        addFiles, removePhoto, clearAll, setPhotos,
+    } = useAlbumUploader(initial.id, initial.photos)
 
-    const [isNew, setIsNew] = React.useState(initial.new);
+    const [isNew, setIsNew] = React.useState(initial.meta.new);
     const [albumName, setAlbumName] = React.useState(initial.albumName)
-    const [priceBRL, setPriceBRL] = React.useState(initial.pricePerPhotoBRL)
-    const [coverPhotoUrl, setCoverPhotoUrl] = React.useState<string | null>(initial.coverPhotoUrl)
+    const [priceBRL, setPriceBRL] = React.useState(centsToBRL(initial.pricePerPhotoCents))
+    const [coverPhotoUrl, setCoverPhotoUrl] = React.useState<string | null | undefined>(initial.coverPhotoUrl)
     const [saving, setSaving] = React.useState(false)
 
     const [isDragging, setIsDragging] = React.useState(false)
     const inputRef = React.useRef<HTMLInputElement | null>(null)
-
-    // carrega as fotos iniciais no estado do hook
-    React.useEffect(() => {
-        setItems(
-            initial.photos.map((p) => ({
-                clientKey: p.id,     // clientKey == id persistido
-                tempUrl: p.url,
-                finalUrl: p.url,
-                photoId: p.id,
-                name: p.originalName ?? p.id,
-                size: p.size ?? 0,
-            }))
-        )
-    }, [initial.photos, setItems])
 
     // drag & drop
     const onDrop = React.useCallback((e: React.DragEvent) => {
@@ -126,31 +124,26 @@ export default function AlbumEditor({ initial }: { initial: Initial }) {
     const onDragOver = React.useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragging(true) }, [])
     const onDragLeave = React.useCallback(() => setIsDragging(false), [])
 
-    // remover foto (chama API e tira do estado)
-    const onRemovePersisted = React.useCallback(async (pid: string) => {
-        // Não deixa remover enquanto envia
-        const isTemp = !photos.find((p) => p.clientKey === pid)?.photoId
-        if (isTemp || inflight > 0) return
+    const removePersistedPhoto = React.useCallback(async (photoId: string) => {
+        if (inflight > 0) return
 
-        const res = await fetch(`/api/photos/${pid}`, { method: 'DELETE' })
-        if (!res.ok) { alert('Falha ao excluir foto'); return }
+        setPhotos((current) => current.map(
+            (photo) => photo.id === photoId ? {...photo, meta: {...photo.meta, deleting: true}} : photo
+        ));
 
-        // remove do estado e ajusta capa se necessário
-        setItems((prev) => {
-            const removed = prev.find((p) => p.clientKey === pid)
-            const filtered = prev.filter((p) => p.clientKey !== pid)
-            const wasCover = removed?.finalUrl && coverPhotoUrl === removed.finalUrl
-            const nextCover = wasCover ? (filtered[0]?.finalUrl ?? null) : coverPhotoUrl
-            setCoverPhotoUrl(nextCover ?? null)
-            return filtered
-        })
-    }, [photos, inflight, coverPhotoUrl, setItems])
+        const response = await fetch(`/api/photos/${photoId}`, { method: 'DELETE' })
+        if (!response.ok) { alert('Falha ao excluir foto'); return }
 
-    // escolher capa
-    const setCoverById = React.useCallback((pid: string) => {
-        const p = photos.find((x) => x.clientKey === pid)
-        if (!p?.photoId || !p.finalUrl) return
-        setCoverPhotoUrl(p.finalUrl)
+        const removed = photos.find((p) => p.id === photoId);
+        setCoverPhotoUrl((current) => (current === removed?.url) ? '' : current)
+        removePhoto(photoId);
+    }, [photos, inflight, coverPhotoUrl, setPhotos])
+
+    const setCoverPhoto = React.useCallback((photoId: string) => {
+        const photo = photos.find((x) => x.id === photoId)
+        if (photo && !photo?.meta.new) {
+            setCoverPhotoUrl(photo.url)
+        }
     }, [photos])
 
     // salvar
@@ -299,52 +292,67 @@ export default function AlbumEditor({ initial }: { initial: Initial }) {
                     ) : (
                         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                             {photos.map((p) => {
-                                const pct = progress[p.clientKey]
-                                const isTemp = !p.photoId
-                                const url = p.finalUrl ?? p.tempUrl
-                                const isCover = coverPhotoUrl === p.finalUrl
-                                return (
-                                    <li key={p.clientKey} className="group overflow-hidden rounded-xl border">
-                                        <div className="relative h-40 w-full">
-                                            <SafeImage src={url} alt={p.name} sizes="160px" />
+                                const photoProgress = progress[p.id]
+                                const url = p.urlThumb || p.url || p.meta?.temporaryUrl;
+                                const isCover = coverPhotoUrl === p.url;
+                                const uploading = photoProgress && photoProgress < 100;
 
-                                            {(isTemp || (typeof pct === 'number' && pct < 100)) && (
+                                return (
+                                    <li key={p.id} className="group overflow-hidden rounded-xl border">
+                                        <div className="relative h-40 w-full">
+                                            <SafeImage src={url} sizes="160px" />
+
+                                            {(uploading || p.meta.deleting) && (
                                                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-black/35 backdrop-blur-[1px]">
                                                     <Spinner size={22} />
-                                                    <span className="text-[11px] text-white/90">
-                            Enviando{typeof pct === 'number' ? ` ${pct}%` : '…'}
-                          </span>
+
+                                                        <span className="text-[11px] text-white/90">
+                                                            {uploading ?
+                                                                `Enviando ${photoProgress}%` :
+                                                                `Excluindo…`}
+                                                        </span>
                                                 </div>
                                             )}
 
-                                            {typeof pct === 'number' && (
+                                            {photoProgress && (
                                                 <div className="absolute inset-x-0 bottom-0 h-1 bg-black/20">
-                                                    <div className="h-full bg-white/80" style={{ width: `${pct}%` }} />
+                                                    <div className="h-full bg-white/80" style={{ width: `${photoProgress}%` }} />
                                                 </div>
+                                            )}
+
+                                            { (!p.urlThumb || !p.urlWatermark) && (
+                                            <div className="absolute bottom-2 left-2 z-20">
+                                                <span className="group inline-flex items-center rounded bg-black/50 px-1 py-1 text-[10px] font-semibold tracking-wide text-white shadow leading-none">
+                                                    <Clock size={16} className="shrink-0 text-white mr-1" strokeWidth={2} aria-hidden />
+                                                    Processando
+                                                </span>
+                                            </div>
                                             )}
 
                                             <div className="absolute left-2 top-2 z-20">
-                                                {isCover ? (
-                                                    <span className="rounded bg-emerald-600/90 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow">
-                            CAPA ATUAL
-                          </span>
-                                                ) : (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setCoverById(p.clientKey)}
-                                                        disabled={isTemp || inflight > 0}
-                                                        className="rounded bg-black/70 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur hover:bg-black/80 disabled:opacity-50"
-                                                        aria-label="Usar como capa"
-                                                    >
-                                                        USAR COMO CAPA
-                                                    </button>
-                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCoverPhoto(p.id)}
+                                                    disabled={inflight > 0}
+                                                    aria-label={isCover ? "Capa atual" : "Usar como capa"}
+                                                    className={
+                                                    "transition group-hover:opacity-100 group inline-flex items-center rounded px-1 py-1 text-[10px] font-semibold tracking-wide text-white shadow leading-none " +
+                                                        (isCover ? 'bg-emerald-600/90' : 'opacity-0 bg-black/70 cursor-pointer')
+                                                    }
+                                                >
+                                                    <Wallpaper size={16} className="shrink-0 text-white" strokeWidth={2} aria-hidden />
+                                                    {isCover && (
+                                                        <span className="ml-1 overflow-hidden">
+                                                            Capa
+                                                        </span>
+                                                    )}
+                                                </button>
                                             </div>
 
                                             <button
                                                 type="button"
-                                                aria-label={`Remover ${p.name}`}
-                                                onClick={() => isTemp ? removeItem(p.clientKey) : onRemovePersisted(p.clientKey)}
+                                                aria-label={`Remover foo`}
+                                                onClick={() => removePersistedPhoto(p.id)}
                                                 className="absolute right-2 top-2 z-20 rounded-full bg-black/70 p-1 text-white opacity-0 transition group-hover:opacity-100 disabled:opacity-50"
                                                 disabled={inflight > 0}
                                             >
@@ -353,10 +361,10 @@ export default function AlbumEditor({ initial }: { initial: Initial }) {
                                         </div>
 
                                         <div className="flex items-center justify-between gap-2 border-t bg-muted/60 px-2 py-1 text-[11px] text-muted-foreground">
-                      <span className="line-clamp-1 break-all" title={p.name}>
-                        {p.name}
+                      <span className="line-clamp-1 break-all" title={p.originalName ?? ''}>
+                        {p.originalName}
                       </span>
-                                            <span className="shrink-0">{human(p.size)}</span>
+                                            <span className="shrink-0">{human(p.sizeBytes ?? 0)}</span>
                                         </div>
                                     </li>
                                 )
@@ -368,7 +376,7 @@ export default function AlbumEditor({ initial }: { initial: Initial }) {
                 )}
             </CardContent>
 
-            <CardFooter className="flex justify-end gap-2">
+            <CardFooter className="flex justify-end gap-2 mt-4">
                 <Button asChild variant="outline"><Link href={`/albums`}>Cancelar</Link></Button>
                 <Button type="submit" disabled={disabledAll}>
                     {saving ? (isNew ? 'Criando…' : 'Salvando…') : inflight > 0 ? 'Aguarde envio…' : (isNew ? 'Criar' : 'Salvar alterações')}

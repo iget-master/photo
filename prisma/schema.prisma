@@ -59,6 +59,7 @@ model Photo {
 
   orderItems OrderItem[]
   album      Album?      @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  deletedAt DateTime?
 
   @@index([albumId, createdAt])
   @@index([createdAt])

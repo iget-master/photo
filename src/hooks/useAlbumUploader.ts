@@ -5,25 +5,29 @@ import { upload } from '@vercel/blob/client'
 import cuid from 'cuid'
 import { nanoid } from 'nanoid'
 
-export type LocalItem = {
-    clientKey: string
-    tempUrl: string
-    finalUrl?: string
-    photoId?: string
-    name: string
-    size: number
-}
-
 type ProgressMap = Record<string, number>
 
+type Photo = {
+    id: string
+    originalName?: string|null
+    url?: string
+    urlWatermark?: string|null
+    urlThumb?: string|null
+    sizeBytes?: number|null
+    meta: {
+        new: boolean
+        temporaryUrl?: string
+        deleting?: boolean
+    }
+}
+
 function sanitizeFileName(name: string) {
-    // mantém espaços; troca caracteres problemáticos
     return name.replace(/[\\/:*?"<>|\r\n]/g, '_').slice(0, 180)
 }
 
-export function useAlbumUploader(albumId: string) {
-    const [items, setItems] = React.useState<LocalItem[]>([])
-    const [inflight, setInflight] = React.useState(0)
+export function useAlbumUploader(albumId: string, initialPhotos: Array<Photo>) {
+    const [photos, setPhotos] = React.useState<Photo[]>(initialPhotos)
+    const [pendingUploadCount, setPendingUploadCount] = React.useState(0)
     const [progress, setProgress] = React.useState<ProgressMap>({})
     const objectUrlsRef = React.useRef<Record<string, string>>({})
 
@@ -32,6 +36,21 @@ export function useAlbumUploader(albumId: string) {
             Object.values(objectUrlsRef.current).forEach((u) => URL.revokeObjectURL(u))
             objectUrlsRef.current = {}
         }
+    }, []);
+
+    const revokeObjectURLByPhotoId = React.useCallback((photoId: string, timeout = 0) => {
+        const objectURL = objectUrlsRef.current[photoId]
+        if (objectURL) {
+            setTimeout(() => URL.revokeObjectURL(objectURL), timeout)
+            delete objectUrlsRef.current[objectURL]
+        }
+    }, []);
+
+    const removePhoto = React.useCallback((photoId: string) => {
+        setPhotos((previousPhoto) => {
+            revokeObjectURLByPhotoId(photoId);
+            return previousPhoto.filter((p) => p.id !== photoId)
+        })
     }, [])
 
     const addFiles = React.useCallback(async (files: FileList | File[]) => {
@@ -40,33 +59,40 @@ export function useAlbumUploader(albumId: string) {
         if (images.length === 0) return
 
         // 1) adiciona na UI (no topo)
-        const pending = images.map((file) => {
-            const clientKey = cuid() // === ID da Photo no servidor
-            const tempUrl = URL.createObjectURL(file)
-            objectUrlsRef.current[clientKey] = tempUrl
-            return { clientKey, file, tempUrl }
+        const pendingUploadPhotos = images.map((file) => {
+            const temporaryUrl = URL.createObjectURL(file);
+            const id = cuid();
+            objectUrlsRef.current[id] = temporaryUrl;
+
+            return {
+                id,
+                file,
+                temporaryUrl,
+            }
         })
 
-        setItems((prev) => {
-            const next: LocalItem[] = [
-                ...pending.map(({ clientKey, file, tempUrl }) => ({
-                    clientKey,
-                    tempUrl,
-                    name: file.name,
-                    size: file.size,
+        setPhotos((prev) => {
+            const next: Photo[] = [
+                ...pendingUploadPhotos.map(({ id, file, temporaryUrl }) => ({
+                    id,
+                    originalName: file.name,
+                    sizeBytes: file.size,
+                    meta: {
+                        new: true,
+                        temporaryUrl
+                    }
                 })),
                 ...prev,
             ]
-            // ordena por id desc (cuid ~ tempo)
-            next.sort((a, b) => b.clientKey.localeCompare(a.clientKey))
+
+            next.sort((a, b) => b.id.localeCompare(a.id))
             return next
         })
 
-        // 2) sobe cada arquivo
-        setInflight((n) => n + pending.length)
+        setPendingUploadCount((n) => n + pendingUploadPhotos.length)
 
         await Promise.all(
-            pending.map(async ({ clientKey, file }) => {
+            pendingUploadPhotos.map(async ({ id, file }) => {
                 const safeName = sanitizeFileName(file.name)
                 const folder = nanoid() // subpasta aleatória
                 try {
@@ -79,77 +105,74 @@ export function useAlbumUploader(albumId: string) {
                             handleUploadUrl: `/api/albums/${albumId}/upload`,
                             multipart: file.size > 4_500_000,
                             clientPayload: JSON.stringify({
-                                id: clientKey,            // o servidor criará Photo.id = clientKey
+                                id,
                                 originalName: file.name,
                                 size: file.size,
                                 contentType: file.type,
                             }),
                             onUploadProgress: ({ percentage }) => {
                                 const pct = Math.min(99, Math.max(0, Math.round(percentage)))
-                                setProgress((m) => ({ ...m, [clientKey]: pct }))
+                                setProgress((m) => ({ ...m, [id]: pct }))
                             },
                         }
                     )
 
-                    // 3) marca como finalizado na UI
-                    setProgress((m) => ({ ...m, [clientKey]: 100 }))
-                    setItems((prev) =>
-                        prev.map((it) =>
-                            it.clientKey === clientKey
-                                ? { ...it, finalUrl: result.url, photoId: clientKey } // photoId == cuid
-                                : it
-                        )
-                    )
+                    const response = await fetch(`/api/albums/${albumId}/photos`, {
+                        method: 'PATCH',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({
+                            photos: [{
+                                id,
+                                originalName: file.name,
+                                sizeBytes: file.size,
+                                url: result.url
+                            }]
+                        })
+                    });
 
-                    // libera o objectURL após trocar a imagem
-                    const loc = objectUrlsRef.current[clientKey]
-                    if (loc) {
-                        setTimeout(() => URL.revokeObjectURL(loc), 400)
-                        delete objectUrlsRef.current[clientKey]
+                    if (!response.ok) {
+                        throw 'Failed to save Photo on API';
                     }
+
+                    // 3) marca como finalizado na UI
+                    setProgress((m) => ({ ...m, [id]: 100 }))
+                    setPhotos((prev) => {
+                            return prev.map((it) =>
+                                it.id === id
+                                    ? { ...it, url: result.url, photoId: id, meta: { new: false } }
+                                    : it
+                            )
+                    })
+
+                    revokeObjectURLByPhotoId(id, 400);
                 } catch (e) {
                     console.error('[upload error]', e)
-                    // remove item problemático
-                    setItems((prev) => prev.filter((it) => it.clientKey !== clientKey))
-                    const loc = objectUrlsRef.current[clientKey]
-                    if (loc) URL.revokeObjectURL(loc)
-                    delete objectUrlsRef.current[clientKey]
+                    removePhoto(id);
                 } finally {
-                    setInflight((n) => Math.max(0, n - 1))
+                    setPendingUploadCount((n) => Math.max(0, n - 1))
                 }
             })
         )
     }, [albumId])
 
-    const removeItem = React.useCallback((clientKey: string) => {
-        setItems((prev) => {
-            const loc = objectUrlsRef.current[clientKey]
-            if (loc) URL.revokeObjectURL(loc)
-            delete objectUrlsRef.current[clientKey]
-            return prev.filter((p) => p.clientKey !== clientKey)
-        })
-    }, [])
-
     const clearAll = React.useCallback(() => {
-        setItems((prev) => {
+        setPhotos((prev) => {
             prev.forEach((p) => {
-                const loc = objectUrlsRef.current[p.clientKey]
-                if (loc) URL.revokeObjectURL(loc)
+                revokeObjectURLByPhotoId(p.id);
             })
             return []
         })
-        objectUrlsRef.current = {}
         setProgress({})
     }, [])
 
     return {
-        items,
-        inflight,
+        photos,
+        inflight: pendingUploadCount,
         progress,
         addFiles,
-        removeItem,
+        removePhoto,
         clearAll,
-        setItems,     // expõe para integrações (ex.: recarregar do backend)
-        setProgress,  // idem
+        setPhotos,
+        setProgress,
     }
 }
