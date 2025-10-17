@@ -95,7 +95,7 @@ export default function MarketingPage() {
                     </div>
                     <div className="flex items-center gap-3">
                         <Btn href="/login" variant="ghost">Entrar</Btn>
-                        <Btn href="/signup">
+                        <Btn href="/register">
                             Comece grátis <ArrowRight className="size-4" aria-hidden />
                         </Btn>
                     </div>
@@ -114,7 +114,7 @@ export default function MarketingPage() {
                             Cadastre-se grátis, crie um álbum do seu evento e compartilhe o link. O cliente encontra suas próprias fotos com reconhecimento facial e paga em poucos toques.
                         </p>
                         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                            <Btn href="/signup">
+                            <Btn href="/register">
                                 Comece agora — é grátis
                                 <Rocket className="size-4" aria-hidden />
                             </Btn>
@@ -251,7 +251,7 @@ export default function MarketingPage() {
                                 <div className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Você no controle</div>
                                 <div className="mt-2 text-4xl font-black">10%</div>
                                 <div className="text-sm text-muted-foreground mb-2">do valor vendido</div>
-                                <Btn href="/signup">
+                                <Btn href="/register">
                                     Começar grátis <ArrowRight className="size-4" />
                                 </Btn>
                             </div>
@@ -269,7 +269,7 @@ export default function MarketingPage() {
                             Gere um álbum de teste, escaneie o QR e veja como os clientes encontram as próprias fotos por reconhecimento facial.
                         </p>
                         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                            <Link href="/signup" className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 font-semibold text-emerald-700 hover:bg-white/90">
+                            <Link href="/register" className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 font-semibold text-emerald-700 hover:bg-white/90">
                                 Criar álbum de teste <Rocket className="size-4" />
                             </Link>
                             <Link href="/login" className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-5 py-3 font-semibold text-white hover:bg-emerald-500/90">
