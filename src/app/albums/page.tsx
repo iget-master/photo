@@ -125,7 +125,7 @@ export default async function AlbumsPage({
                 <div className="flex items-center gap-2">
                     <SortBar sortBy={sortBy} sortDir={sortDir} />
                     <Button asChild>
-                        <Link href="/albums/new">+ Novo Álbum</Link>
+                        <Link href="/albums/new/edit">+ Novo Álbum</Link>
                     </Button>
                 </div>
             </div>
