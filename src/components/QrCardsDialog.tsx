@@ -3,6 +3,7 @@
 import * as React from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { QrCode, Download, X, Loader2 } from "lucide-react";
+import {Button} from "@/components/ui/button";
 
 export function QrCardsDialog({
                                   albumId,
@@ -58,19 +59,22 @@ export function QrCardsDialog({
     return (
         <Dialog.Root open={open} onOpenChange={setOpen}>
             <Dialog.Trigger asChild>
-                <button
-                    className="inline-flex items-center gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm font-medium shadow-sm hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                    aria-label="Gerar cartões QR"
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="hover:bg-transparent cursor-pointer"
+                    aria-label="Gerar QRCards"
+                    title="Gerar QRCards"
                 >
-                    <QrCode className="size-4" aria-hidden />
-                    QRCards
-                </button>
+                    <QrCode className="h-5 w-5" />
+                </Button>
             </Dialog.Trigger>
             <Dialog.Portal>
                 <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
                 <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-black/10 bg-white p-6 shadow-xl focus:outline-none data-[state=open]:animate-in data-[state=open]:zoom-in-95 data-[state=open]:fade-in-0">
                     <div className="flex items-start justify-between gap-4">
-                        <Dialog.Title className="text-lg font-semibold">Gerar cartões QR (A4)</Dialog.Title>
+                        <Dialog.Title className="text-lg font-semibold">Imprimir QRCards</Dialog.Title>
+
                         <Dialog.Close asChild>
                             <button className="rounded-md p-1 text-muted-foreground hover:bg-black/5" aria-label="Fechar">
                                 <X className="size-4" />
@@ -79,6 +83,10 @@ export function QrCardsDialog({
                     </div>
 
                     <div className="mt-4 space-y-4">
+                        <div className="grid gap-1.5">
+                            <p className="text-sm">QRCards são cartões com um QRCode que leva seus clientes direto para a página do seu album.</p>
+                            <p className="text-sm">Uma folha de papel A4 cabe 15 QRCards.</p>
+                        </div>
                         <div className="grid gap-1.5">
                             <label htmlFor="qr-title" className="text-sm font-medium">Título</label>
                             <input
@@ -137,34 +145,3 @@ export function QrCardsDialog({
         </Dialog.Root>
     );
 }
-
-// ---------------------------------------------------------------------------
-// Exemplo de uso na página de lista de álbuns
-// ---------------------------------------------------------------------------
-// Em app/(dashboard)/albums/page.tsx (ou onde você lista os álbuns):
-//
-// "use client"; // se este arquivo renderiza a lista no cliente
-// import { QrCardsDialog } from "@/components/QrCardsDialog";
-//
-// export default function AlbumsPage() {
-//   const albums = [
-//     { id: "abc123", name: "Corrida de Rua" },
-//     { id: "def456", name: "Trackday" },
-//   ];
-//
-//   return (
-//     <div className="space-y-3">
-//       {albums.map((album) => (
-//         <div key={album.id} className="flex items-center justify-between rounded-xl border border-black/10 bg-white p-4">
-//           <div className="min-w-0">
-//             <div className="truncate text-sm font-medium">{album.name}</div>
-//             <div className="text-xs text-muted-foreground">ID: {album.id}</div>
-//           </div>
-//           <div className="flex items-center gap-2">
-//             <QrCardsDialog albumId={album.id} />
-//           </div>
-//         </div>
-//       ))}
-//     </div>
-//   );
-// }
