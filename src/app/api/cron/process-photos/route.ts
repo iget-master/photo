@@ -23,8 +23,12 @@ async function markPhotoProcessingAsFailed(photo: {id: string, attempts: number}
 export async function POST(
     request: NextRequest
 ) {
-    const body = await request.json();
-    const only = body.only ?? null;
+    let only = null;
+
+    try {
+        const body = await request.json();
+        only = body.only;
+    } catch {}
 
     const counters = {successfull: 0, failed: 0}
     const unprocessedPhotos = await prisma.$transaction(async (tx) => {

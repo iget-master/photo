@@ -3,6 +3,7 @@ import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import {notFound} from "next/navigation";
 
 export const runtime = 'nodejs' // sem Prisma aqui, mas mantemos Node
 
@@ -26,6 +27,8 @@ export function buildPathRegex(albumId: string) {
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
     const session = await getServerSession(authOptions);
+    if (!session || !session.user) return notFound();
+
     const { id: albumId } = await params;
 
     const albumBelongsToUser = await prisma.album.count({where: { id: albumId, photographerId: session!.user.id }}) === 1
