@@ -82,7 +82,7 @@ export function QrCardsDialog({
                 <Button
                     variant={button.variant}
                     size={button.size}
-                    className="hover:bg-transparent cursor-pointer px-3"
+                    className="hover:bg-transparent cursor-pointer font-normal px-3"
                     aria-label="Gerar QRCards"
                     title="Gerar QRCards"
                 >
