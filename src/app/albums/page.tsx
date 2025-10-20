@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import SortBar from './sort-bar'
-import {Link as LinkIcon, Receipt, Pencil, QrCode, MoreVertical} from 'lucide-react'
+import {Link as LinkIcon, Receipt, Pencil, MoreVertical} from 'lucide-react'
 import {QrCardsDialog} from "@/components/QrCardsDialog";
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu";
 import * as React from "react";
@@ -101,7 +101,6 @@ function sortRows(rows: Row[], sortBy: SortBy, sortDir: SortDir) {
 export default async function AlbumsPage({
                                              searchParams,
                                          }: {
-    // Next 15+: searchParams é assíncrono
     searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
     const session = await getServerSession(authOptions)

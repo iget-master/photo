@@ -31,7 +31,6 @@ import {
     DropdownMenuTrigger,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
 
 const brlIntl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })

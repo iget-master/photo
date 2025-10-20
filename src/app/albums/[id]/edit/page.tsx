@@ -1,14 +1,12 @@
-// app/albums/[id]/edit/page.tsx
 import prisma from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import AlbumEditor from '@/components/AlbumEditor'
 import cuid from "cuid";
 import {ParamsWithId} from "@/types/params/id";
-import {ChevronLeft, ChevronRight} from "lucide-react";
+import {ChevronRight} from "lucide-react";
 
 export const dynamic = 'force-dynamic'
 
