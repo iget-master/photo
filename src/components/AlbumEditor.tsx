@@ -4,16 +4,35 @@ import * as React from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import {Card, CardContent, CardFooter, CardHeader, CardTitle} from '@/components/ui/card'
+import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {Clock, Link as LinkIcon, QrCode, Receipt, Trash2, Upload, Wallpaper, X} from 'lucide-react'
+import {
+    Clock,
+    Link as LinkIcon,
+    QrCode,
+    Receipt,
+    Trash2,
+    Upload,
+    Wallpaper,
+    X,
+    MoreVertical
+} from 'lucide-react'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
 import { Spinner } from '@/components/ui/spinner'
 import { useAlbumUploader } from '@/hooks/useAlbumUploader'
-import {centsToBRL} from "@/helpers/centsToBRL";
-import Link from "next/link";
-import {QrCardsDialog} from "@/components/QrCardsDialog";
+import { centsToBRL } from '@/helpers/centsToBRL'
+import Link from 'next/link'
+import { QrCardsDialog } from '@/components/QrCardsDialog'
+
+// ⬇️ shadcn dropdown
+import {
+    DropdownMenu,
+    DropdownMenuTrigger,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu'
 
 const brlIntl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const FALLBACK =
@@ -46,7 +65,7 @@ function SafeImage({ src, alt, sizes = '160px' }: { src?: string; alt?: string; 
 
         const canDecode = 'decode' in HTMLImageElement.prototype
         if (canDecode) {
-            ;(img as HTMLImageElement).decode().then(done).catch(done)
+            ; (img as HTMLImageElement).decode().then(done).catch(done)
         } else {
             const onLoad = () => done()
             const onError = () => done()
@@ -74,14 +93,15 @@ function SafeImage({ src, alt, sizes = '160px' }: { src?: string; alt?: string; 
 
 type Photo = {
     id: string
-    originalName?: string|null
+    originalName?: string | null
     url: string
-    urlWatermark?: string|null
-    urlThumb?: string|null
-    sizeBytes?: number|null
+    urlWatermark?: string | null
+    urlThumb?: string | null
+    sizeBytes?: number | null
     meta: {
         new: boolean
         temporaryUrl?: string
+        deleting?: boolean
     }
 }
 
@@ -89,14 +109,12 @@ export type InitialAlbum = {
     id: string
     albumName?: string
     pricePerPhotoCents?: number
-    coverPhotoUrl?: string|null
+    coverPhotoUrl?: string | null
     photos: Photo[]
     meta: {
         new: boolean
     }
 }
-
-
 
 export default function AlbumEditor({ initial }: { initial: InitialAlbum }) {
     const router = useRouter()
@@ -128,7 +146,7 @@ export default function AlbumEditor({ initial }: { initial: InitialAlbum }) {
         if (inflight > 0) return
 
         setPhotos((current) => current.map(
-            (photo) => photo.id === photoId ? {...photo, meta: {...photo.meta, deleting: true}} : photo
+            (photo) => photo.id === photoId ? { ...photo, meta: { ...photo.meta, deleting: true } } : photo
         ));
 
         const response = await fetch(`/api/photos/${photoId}`, { method: 'DELETE' })
@@ -213,60 +231,103 @@ export default function AlbumEditor({ initial }: { initial: InitialAlbum }) {
 
     return (
         <Card>
-            <CardHeader>
-                <div className="flex justify-end gap-2 flex-wrap">
-                    {!isNew && (
-                    <>
-                    <QrCardsDialog
-                        noButton
-                        albumId={initial.id}
-                        open={qrCardsModalOpen}
-                        setOpenAction={setQrCardsModalOpen}
-                    />
-                    <Button
-                        asChild
-                        variant="outline"
-                        className="hover:bg-transparent cursor-pointer"
-                        aria-label="Abrir página pública"
-                        title="Abrir página pública"
-                    >
-                        <span>
-                            <QrCode className="h-5 w-5" />
-                            Ver álbum
-                        </span>
-                    </Button>
-                    <Button
-                        asChild
-                        variant="outline"
-                        className="hover:bg-transparent"
-                        aria-label="Abrir página pública"
-                        title="Abrir página pública"
-                    >
-                        <Link href={`/public/album/${initial.id}`}>
-                            <LinkIcon className="h-5 w-5" />
-                            Ver álbum
-                        </Link>
-                    </Button>
-                    <Button
-                        asChild
-                        variant="outline"
-                        className="hover:bg-transparent"
-                        aria-label="Ver pedidos"
-                        title="Ver pedidos"
-                    >
-                        <Link href={`/albums/${initial.id}/orders`}>
-                            <Receipt className="h-5 w-5" />
-                            Compras
-                        </Link>
-                    </Button>
-                    </>)}
-
-                    <Button type="submit" disabled={disabledAll}>
-                        {saving ? (isNew ? 'Criando…' : 'Salvando…') : inflight > 0 ? 'Aguarde envio…' : (isNew ? 'Criar' : 'Salvar')}
-                    </Button>
-                </div>
-            </CardHeader>
             <form onSubmit={onSave}>
+                <CardHeader>
+                    <div className="flex justify-between gap-2 mb-2 flex-wrap">
+                        <CardTitle className="text-lg grow">Dados do álbum</CardTitle>
+                        <QrCardsDialog
+                            noButton
+                            albumId={initial.id}
+                            open={qrCardsModalOpen}
+                            setOpenAction={setQrCardsModalOpen}
+                        />
+
+                        {!isNew && (
+                            <>
+                                <div className="hidden md:flex gap-2 flex-wrap">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="hover:bg-transparent cursor-pointer"
+                                        aria-label="QR Cards"
+                                        title="QR Cards"
+                                        onClick={() => setQrCardsModalOpen(true)}
+                                    >
+                                        <QrCode className="h-5 w-5" />
+                                        QR Cards
+                                    </Button>
+
+                                    <Button
+                                        asChild
+                                        variant="outline"
+                                        className="hover:bg-transparent"
+                                        aria-label="Abrir página pública"
+                                        title="Abrir página pública"
+                                    >
+                                        <Link href={`/public/album/${initial.id}`}>
+                                            <LinkIcon className="h-5 w-5" />
+                                            Ver álbum
+                                        </Link>
+                                    </Button>
+
+                                    <Button
+                                        asChild
+                                        variant="outline"
+                                        className="hover:bg-transparent"
+                                        aria-label="Ver pedidos"
+                                        title="Ver pedidos"
+                                    >
+                                        <Link href={`/albums/${initial.id}/orders`}>
+                                            <Receipt className="h-5 w-5" />
+                                            Compras
+                                        </Link>
+                                    </Button>
+                                </div>
+                                <div className="md:hidden order-1">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="icon"
+                                                className="hover:bg-transparent"
+                                                aria-label="Mais opções"
+                                                title="Mais opções"
+                                            >
+                                                <MoreVertical className="h-5 w-5" />
+                                                <span className="sr-only">Abrir menu</span>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="min-w-40">
+                                            <DropdownMenuItem onClick={() => setQrCardsModalOpen(true)}>
+                                                <QrCode className="mr-2 h-4 w-4" />
+                                                <span>QR Cards</span>
+                                            </DropdownMenuItem>
+
+                                            <DropdownMenuItem asChild>
+                                                <Link href={`/public/album/${initial.id}`}>
+                                                    <LinkIcon className="mr-2 h-4 w-4" />
+                                                    <span>Ver álbum</span>
+                                                </Link>
+                                            </DropdownMenuItem>
+
+                                            <DropdownMenuItem asChild>
+                                                <Link href={`/albums/${initial.id}/orders`}>
+                                                    <Receipt className="mr-2 h-4 w-4" />
+                                                    <span>Compras</span>
+                                                </Link>
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            </>
+                        )}
+
+                        <Button type="submit" disabled={disabledAll}>
+                            {saving ? (isNew ? 'Criando…' : 'Salvando…') : inflight > 0 ? 'Aguarde envio…' : (isNew ? 'Criar' : 'Salvar')}
+                        </Button>
+                    </div>
+                </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="grid gap-6 md:grid-cols-3">
                         <div className="space-y-3">
@@ -360,10 +421,10 @@ export default function AlbumEditor({ initial }: { initial: InitialAlbum }) {
                                                                 <Spinner size={22} />
 
                                                                 <span className="text-[11px] text-white/90">
-                                                            {uploading ?
-                                                                `Enviando ${photoProgress}%` :
-                                                                `Excluindo…`}
-                                                        </span>
+                                  {uploading ?
+                                      `Enviando ${photoProgress}%` :
+                                      `Excluindo…`}
+                                </span>
                                                             </div>
                                                         )}
 
@@ -373,12 +434,12 @@ export default function AlbumEditor({ initial }: { initial: InitialAlbum }) {
                                                             </div>
                                                         )}
 
-                                                        { (!p.urlThumb || !p.urlWatermark) && (
+                                                        {(!p.urlThumb || !p.urlWatermark) && (
                                                             <div className="absolute bottom-2 left-2 z-20">
-                                                <span className="group inline-flex items-center rounded bg-black/50 px-1 py-1 text-[10px] font-semibold tracking-wide text-white shadow leading-none">
-                                                    <Clock size={16} className="shrink-0 text-white mr-1" strokeWidth={2} aria-hidden />
-                                                    Processando
-                                                </span>
+                                <span className="group inline-flex items-center rounded bg-black/50 px-1 py-1 text-[10px] font-semibold tracking-wide text-white shadow leading-none">
+                                  <Clock size={16} className="shrink-0 text-white mr-1" strokeWidth={2} aria-hidden />
+                                  Processando
+                                </span>
                                                             </div>
                                                         )}
 
@@ -396,15 +457,15 @@ export default function AlbumEditor({ initial }: { initial: InitialAlbum }) {
                                                                 <Wallpaper size={16} className="shrink-0 text-white" strokeWidth={2} aria-hidden />
                                                                 {isCover && (
                                                                     <span className="ml-1 overflow-hidden">
-                                                            Capa
-                                                        </span>
+                                    Capa
+                                  </span>
                                                                 )}
                                                             </button>
                                                         </div>
 
                                                         <button
                                                             type="button"
-                                                            aria-label={`Remover foo`}
+                                                            aria-label={`Remover foto`}
                                                             onClick={() => removePersistedPhoto(p.id)}
                                                             className="absolute right-2 top-2 z-20 rounded-full bg-black/70 p-1 text-white opacity-0 transition group-hover:opacity-100 disabled:opacity-50"
                                                             disabled={inflight > 0}
@@ -414,9 +475,9 @@ export default function AlbumEditor({ initial }: { initial: InitialAlbum }) {
                                                     </div>
 
                                                     <div className="flex items-center justify-between gap-2 border-t bg-muted/60 px-2 py-1 text-[11px] text-muted-foreground">
-                      <span className="line-clamp-1 break-all" title={p.originalName ?? ''}>
-                        {p.originalName}
-                      </span>
+                            <span className="line-clamp-1 break-all" title={p.originalName ?? ''}>
+                              {p.originalName}
+                            </span>
                                                         <span className="shrink-0">{human(p.sizeBytes ?? 0)}</span>
                                                     </div>
                                                 </li>
