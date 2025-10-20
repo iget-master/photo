@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import {Card, CardContent, CardFooter, CardHeader, CardTitle} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {Clock, Link as LinkIcon, Receipt, Trash2, Upload, Wallpaper, X} from 'lucide-react'
+import {Clock, Link as LinkIcon, QrCode, Receipt, Trash2, Upload, Wallpaper, X} from 'lucide-react'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
 import { Spinner } from '@/components/ui/spinner'
 import { useAlbumUploader } from '@/hooks/useAlbumUploader'
@@ -106,6 +106,7 @@ export default function AlbumEditor({ initial }: { initial: InitialAlbum }) {
         addFiles, removePhoto, clearAll, setPhotos,
     } = useAlbumUploader(initial.id, initial.photos)
 
+    const [qrCardsModalOpen, setQrCardsModalOpen] = React.useState(false)
     const [isNew, setIsNew] = React.useState(initial.meta.new);
     const [albumName, setAlbumName] = React.useState(initial.albumName)
     const [priceBRL, setPriceBRL] = React.useState(centsToBRL(initial.pricePerPhotoCents))
@@ -213,52 +214,66 @@ export default function AlbumEditor({ initial }: { initial: InitialAlbum }) {
     return (
         <Card>
             <CardHeader>
-                <div className="flex justify-between">
-                    <CardTitle className="text-lg">Dados do álbum</CardTitle>
-                    <div className="flex justify-between gap-2">
-                        {!isNew && (
-                        <>
-                        <QrCardsDialog albumId={initial.id} button={{variant:"outline", size: null, text: "Gerar QRCards"}} />
-                        <Button
-                            asChild
-                            variant="outline"
-                            className="hover:bg-transparent"
-                            aria-label="Abrir página pública"
-                            title="Abrir página pública"
-                        >
-                            <Link href={`/public/album/${initial.id}`}>
-                                <LinkIcon className="h-5 w-5" />
-                                Ver álbum
-                            </Link>
-                        </Button>
-                        <Button
-                            asChild
-                            variant="outline"
-                            className="hover:bg-transparent"
-                            aria-label="Ver pedidos"
-                            title="Ver pedidos"
-                        >
-                            <Link href={`/albums/${initial.id}/orders`}>
-                                <Receipt className="h-5 w-5" />
-                                Compras
-                            </Link>
-                        </Button>
-                        </>)}
+                <div className="flex justify-end gap-2 flex-wrap">
+                    {!isNew && (
+                    <>
+                    <QrCardsDialog
+                        noButton
+                        albumId={initial.id}
+                        open={qrCardsModalOpen}
+                        setOpenAction={setQrCardsModalOpen}
+                    />
+                    <Button
+                        asChild
+                        variant="outline"
+                        className="hover:bg-transparent cursor-pointer"
+                        aria-label="Abrir página pública"
+                        title="Abrir página pública"
+                    >
+                        <span>
+                            <QrCode className="h-5 w-5" />
+                            Ver álbum
+                        </span>
+                    </Button>
+                    <Button
+                        asChild
+                        variant="outline"
+                        className="hover:bg-transparent"
+                        aria-label="Abrir página pública"
+                        title="Abrir página pública"
+                    >
+                        <Link href={`/public/album/${initial.id}`}>
+                            <LinkIcon className="h-5 w-5" />
+                            Ver álbum
+                        </Link>
+                    </Button>
+                    <Button
+                        asChild
+                        variant="outline"
+                        className="hover:bg-transparent"
+                        aria-label="Ver pedidos"
+                        title="Ver pedidos"
+                    >
+                        <Link href={`/albums/${initial.id}/orders`}>
+                            <Receipt className="h-5 w-5" />
+                            Compras
+                        </Link>
+                    </Button>
+                    </>)}
 
-                        <Button type="submit" disabled={disabledAll}>
-                            {saving ? (isNew ? 'Criando…' : 'Salvando…') : inflight > 0 ? 'Aguarde envio…' : (isNew ? 'Criar' : 'Salvar alterações')}
-                        </Button>
-                    </div>
+                    <Button type="submit" disabled={disabledAll}>
+                        {saving ? (isNew ? 'Criando…' : 'Salvando…') : inflight > 0 ? 'Aguarde envio…' : (isNew ? 'Criar' : 'Salvar')}
+                    </Button>
                 </div>
             </CardHeader>
             <form onSubmit={onSave}>
                 <CardContent className="space-y-6">
                     <div className="grid gap-6 md:grid-cols-3">
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             <Label htmlFor="albumName">Nome do Álbum</Label>
                             <Input id="albumName" value={albumName} onChange={(e) => setAlbumName(e.target.value)} />
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                             <Label htmlFor="pricePerPhoto">Valor por Foto (R$)</Label>
                             <Input
                                 id="pricePerPhoto"
@@ -311,9 +326,8 @@ export default function AlbumEditor({ initial }: { initial: InitialAlbum }) {
                                 </div>
                             </div>
 
-                            {/* Grid de fotos */}
                             <div>
-                                <div className="mb-2 flex items-center justify-between">
+                                <div className="mb-4 flex items-center justify-between">
                                     <h2 className="text-sm font-medium text-muted-foreground">Fotos do álbum ({photos.length})</h2>
                                     <Button
                                         type="button"

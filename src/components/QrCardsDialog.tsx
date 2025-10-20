@@ -9,22 +9,31 @@ export function QrCardsDialog({
                                   albumId,
                                   defaultTitle = "Pegue aqui suas fotos!",
                                   defaultFooter = "",
+                                  noButton = false,
                                   button = {
                                       variant: "ghost",
                                       size: "icon",
                                       text: ""
-                                  }
+                                  },
+                                  open,
+                                  setOpenAction: setOpen,
                               }: {
     albumId: string;
     defaultTitle?: string;
     defaultFooter?: string;
+    noButton?: boolean
     button?: {
         variant?: "ghost"|"outline",
         size?: "icon"|null,
         text?: string|null
-    }
+    },
+    open?: boolean;
+    setOpenAction?: (open: boolean) => void;
 }) {
-    const [open, setOpen] = React.useState(false);
+    if (typeof open === 'undefined' || typeof setOpen === 'undefined') {
+        [open, setOpen] = React.useState(false);
+    }
+
     const [title, setTitle] = React.useState(defaultTitle);
     const [footer, setFooter] = React.useState(defaultFooter);
     const [loading, setLoading] = React.useState(false);
@@ -58,7 +67,7 @@ export function QrCardsDialog({
             a.remove();
             URL.revokeObjectURL(url);
 
-            setOpen(false);
+            setOpen!(false);
         } catch (e: any) {
             setError(e?.message || "Falha ao gerar PDF");
         } finally {
@@ -69,6 +78,7 @@ export function QrCardsDialog({
     return (
         <Dialog.Root open={open} onOpenChange={setOpen}>
             <Dialog.Trigger asChild>
+                {noButton || (
                 <Button
                     variant={button.variant}
                     size={button.size}
@@ -79,6 +89,7 @@ export function QrCardsDialog({
                     <QrCode className="h-5 w-5" />
                     {button.text}
                 </Button>
+                )}
             </Dialog.Trigger>
             <Dialog.Portal>
                 <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />

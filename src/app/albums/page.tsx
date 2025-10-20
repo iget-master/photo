@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import SortBar from './sort-bar'
-import { Link as LinkIcon, Receipt, Pencil } from 'lucide-react'
+import {Link as LinkIcon, Receipt, Pencil, QrCode} from 'lucide-react'
 import {QrCardsDialog} from "@/components/QrCardsDialog";
 
 export const dynamic = 'force-dynamic'
@@ -223,7 +223,7 @@ export default async function AlbumsPage({
                                         <TableCell className="text-right">{brl.format(revenue)}</TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex items-center justify-end gap-1">
-                                                <QrCardsDialog albumId={album.id} />
+                                                <QrCardsDialog albumId={album.id}/>
                                                 {/* Ver página pública */}
                                                 <Button
                                                     asChild
