@@ -7,13 +7,14 @@ export default async function Page({
                                        params,
                                        searchParams,
                                    }: {
-    params: { id: string }
+    params: Promise<{ id: string }>
     searchParams: Promise<SP> | SP
 }) {
     const sp = await searchParams
+    const { id } = await params;
 
     const album = await prisma.album.findUnique({
-        where: { id: params.id },
+        where: { id },
         select: {
             id: true,
             albumName: true,
