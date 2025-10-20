@@ -22,6 +22,7 @@ export default async function Page({
             coverPhotoUrl: true,
             photos: {
                 select: { id: true, urlThumb: true, urlWatermark: true, originalName: true },
+                where: { deletedAt: null },
                 orderBy: { createdAt: 'asc' },
             },
         },
