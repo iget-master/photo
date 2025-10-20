@@ -9,10 +9,20 @@ export function QrCardsDialog({
                                   albumId,
                                   defaultTitle = "Pegue aqui suas fotos!",
                                   defaultFooter = "",
+                                  button = {
+                                      variant: "ghost",
+                                      size: "icon",
+                                      text: ""
+                                  }
                               }: {
     albumId: string;
     defaultTitle?: string;
     defaultFooter?: string;
+    button?: {
+        variant?: "ghost"|"outline",
+        size?: "icon"|null,
+        text?: string|null
+    }
 }) {
     const [open, setOpen] = React.useState(false);
     const [title, setTitle] = React.useState(defaultTitle);
@@ -60,13 +70,14 @@ export function QrCardsDialog({
         <Dialog.Root open={open} onOpenChange={setOpen}>
             <Dialog.Trigger asChild>
                 <Button
-                    variant="ghost"
-                    size="icon"
-                    className="hover:bg-transparent cursor-pointer"
+                    variant={button.variant}
+                    size={button.size}
+                    className="hover:bg-transparent cursor-pointer px-3"
                     aria-label="Gerar QRCards"
                     title="Gerar QRCards"
                 >
                     <QrCode className="h-5 w-5" />
+                    {button.text}
                 </Button>
             </Dialog.Trigger>
             <Dialog.Portal>

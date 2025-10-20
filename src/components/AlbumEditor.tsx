@@ -2,17 +2,18 @@
 
 import * as React from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { CardContent, CardFooter } from '@/components/ui/card'
+import {Card, CardContent, CardFooter, CardHeader, CardTitle} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {Clock, Trash2, Upload, Wallpaper, X} from 'lucide-react'
+import {Clock, Link as LinkIcon, Receipt, Trash2, Upload, Wallpaper, X} from 'lucide-react'
 import { LoadingOverlay } from '@/components/ui/loading-overlay'
 import { Spinner } from '@/components/ui/spinner'
 import { useAlbumUploader } from '@/hooks/useAlbumUploader'
 import {centsToBRL} from "@/helpers/centsToBRL";
+import Link from "next/link";
+import {QrCardsDialog} from "@/components/QrCardsDialog";
 
 const brlIntl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const FALLBACK =
@@ -210,178 +211,212 @@ export default function AlbumEditor({ initial }: { initial: InitialAlbum }) {
     const disabledAll = saving || inflight > 0
 
     return (
-        <form onSubmit={onSave}>
-            <CardContent className="space-y-6">
-                <div className="grid gap-6 md:grid-cols-3">
-                    <div className="space-y-4">
-                        <Label htmlFor="albumName">Nome do Álbum</Label>
-                        <Input id="albumName" value={albumName} onChange={(e) => setAlbumName(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="pricePerPhoto">Valor por Foto (R$)</Label>
-                        <Input
-                            id="pricePerPhoto"
-                            inputMode="numeric"
-                            placeholder="0,00"
-                            value={priceBRL}
-                            onChange={(e) => handlePriceChange(e.target.value)}
-                            onBlur={(e) => handlePriceBlur(e.target.value)}
-                        />
-                        {totalPhotos > 0 && numericPrice > 0 && (
-                            <p className="text-xs text-muted-foreground">
-                                Estimativa: {totalPhotos} foto(s) × {brlIntl.format(numericPrice)} ={' '}
-                                <span className="font-medium">{brlIntl.format(estimatedTotal)}</span>
-                            </p>
-                        )}
-                    </div>
-                </div>
-
-                {isNew ? (<h1 className="text-lg">* Finalize a criação do album para enviar fotos.</h1>) : (
-                <>
-                <div
-                    onDrop={onDrop}
-                    onDragOver={onDragOver}
-                    onDragLeave={onDragLeave}
-                    className={
-                        'relative rounded-2xl border-2 border-dashed p-8 text-center transition ' +
-                        (isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/30 hover:bg-muted/30')
-                    }
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => inputRef.current?.click()}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click() }}
-                    aria-disabled={disabledAll || isNew}
-                >
-                    <input
-                        ref={inputRef}
-                        type="file"
-                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                        multiple
-                        className="hidden"
-                        onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = '' }}
-                        disabled={disabledAll || isNew}
-                    />
-                    <div className="mx-auto flex max-w-md flex-col items-center justify-center gap-3">
-                        <div className="rounded-full border p-3"><Upload className="h-6 w-6" aria-hidden /></div>
-                        <p className="text-sm">
-                            Arraste novas fotos aqui ou <span className="font-semibold underline">clique para selecionar</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">As fotos aparecerão com barra de progresso enquanto enviam.</p>
-                    </div>
-                </div>
-
-                {/* Grid de fotos */}
-                <div>
-                    <div className="mb-2 flex items-center justify-between">
-                        <h2 className="text-sm font-medium text-muted-foreground">Fotos do álbum ({photos.length})</h2>
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between">
+                    <CardTitle className="text-lg">Dados do álbum</CardTitle>
+                    <div className="flex justify-between gap-2">
+                        {!isNew && (
+                        <>
+                        <QrCardsDialog albumId={initial.id} button={{variant:"outline", size: null, text: "Gerar QRCards"}} />
                         <Button
-                            type="button"
+                            asChild
                             variant="outline"
-                            size="sm"
-                            onClick={() => { clearAll(); setCoverPhotoUrl(null) }}
-                            disabled={photos.length === 0 || inflight > 0}
+                            className="hover:bg-transparent"
+                            aria-label="Abrir página pública"
+                            title="Abrir página pública"
                         >
-                            <Trash2 className="mr-2 h-4 w-4" /> Remover todas
+                            <Link href={`/public/album/${initial.id}`}>
+                                <LinkIcon className="h-5 w-5" />
+                                Ver álbum
+                            </Link>
+                        </Button>
+                        <Button
+                            asChild
+                            variant="outline"
+                            className="hover:bg-transparent"
+                            aria-label="Ver pedidos"
+                            title="Ver pedidos"
+                        >
+                            <Link href={`/albums/${initial.id}/orders`}>
+                                <Receipt className="h-5 w-5" />
+                                Compras
+                            </Link>
+                        </Button>
+                        </>)}
+
+                        <Button type="submit" disabled={disabledAll}>
+                            {saving ? (isNew ? 'Criando…' : 'Salvando…') : inflight > 0 ? 'Aguarde envio…' : (isNew ? 'Criar' : 'Salvar alterações')}
                         </Button>
                     </div>
+                </div>
+            </CardHeader>
+            <form onSubmit={onSave}>
+                <CardContent className="space-y-6">
+                    <div className="grid gap-6 md:grid-cols-3">
+                        <div className="space-y-4">
+                            <Label htmlFor="albumName">Nome do Álbum</Label>
+                            <Input id="albumName" value={albumName} onChange={(e) => setAlbumName(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="pricePerPhoto">Valor por Foto (R$)</Label>
+                            <Input
+                                id="pricePerPhoto"
+                                inputMode="numeric"
+                                placeholder="0,00"
+                                value={priceBRL}
+                                onChange={(e) => handlePriceChange(e.target.value)}
+                                onBlur={(e) => handlePriceBlur(e.target.value)}
+                            />
+                            {totalPhotos > 0 && numericPrice > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                    Estimativa: {totalPhotos} foto(s) × {brlIntl.format(numericPrice)} ={' '}
+                                    <span className="font-medium">{brlIntl.format(estimatedTotal)}</span>
+                                </p>
+                            )}
+                        </div>
+                    </div>
 
-                    {photos.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Nenhuma foto. Adicione novas acima.</p>
-                    ) : (
-                        <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-                            {photos.map((p) => {
-                                const photoProgress = progress[p.id]
-                                const url = p.urlThumb || p.url || p.meta?.temporaryUrl;
-                                const isCover = coverPhotoUrl === p.url;
-                                const uploading = photoProgress && photoProgress < 100;
+                    {isNew ? (<h1 className="text-lg">* Finalize a criação do album para enviar fotos.</h1>) : (
+                        <>
+                            <div
+                                onDrop={onDrop}
+                                onDragOver={onDragOver}
+                                onDragLeave={onDragLeave}
+                                className={
+                                    'relative rounded-2xl border-2 border-dashed p-8 text-center transition ' +
+                                    (isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/30 hover:bg-muted/30')
+                                }
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => inputRef.current?.click()}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click() }}
+                                aria-disabled={disabledAll || isNew}
+                            >
+                                <input
+                                    ref={inputRef}
+                                    type="file"
+                                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                    multiple
+                                    className="hidden"
+                                    onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = '' }}
+                                    disabled={disabledAll || isNew}
+                                />
+                                <div className="mx-auto flex max-w-md flex-col items-center justify-center gap-3">
+                                    <div className="rounded-full border p-3"><Upload className="h-6 w-6" aria-hidden /></div>
+                                    <p className="text-sm">
+                                        Arraste novas fotos aqui ou <span className="font-semibold underline">clique para selecionar</span>
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">As fotos aparecerão com barra de progresso enquanto enviam.</p>
+                                </div>
+                            </div>
 
-                                return (
-                                    <li key={p.id} className="group overflow-hidden rounded-xl border">
-                                        <div className="relative h-40 w-full">
-                                            <SafeImage src={url} sizes="160px" />
+                            {/* Grid de fotos */}
+                            <div>
+                                <div className="mb-2 flex items-center justify-between">
+                                    <h2 className="text-sm font-medium text-muted-foreground">Fotos do álbum ({photos.length})</h2>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => { clearAll(); setCoverPhotoUrl(null) }}
+                                        disabled={photos.length === 0 || inflight > 0}
+                                    >
+                                        <Trash2 className="mr-2 h-4 w-4" /> Remover todas
+                                    </Button>
+                                </div>
 
-                                            {(uploading || p.meta.deleting) && (
-                                                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-black/35 backdrop-blur-[1px]">
-                                                    <Spinner size={22} />
+                                {photos.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">Nenhuma foto. Adicione novas acima.</p>
+                                ) : (
+                                    <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+                                        {photos.map((p) => {
+                                            const photoProgress = progress[p.id]
+                                            const url = p.urlThumb || p.url || p.meta?.temporaryUrl;
+                                            const isCover = coverPhotoUrl === p.url;
+                                            const uploading = photoProgress && photoProgress < 100;
 
-                                                        <span className="text-[11px] text-white/90">
+                                            return (
+                                                <li key={p.id} className="group overflow-hidden rounded-xl border">
+                                                    <div className="relative h-40 w-full">
+                                                        <SafeImage src={url} sizes="160px" />
+
+                                                        {(uploading || p.meta.deleting) && (
+                                                            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-black/35 backdrop-blur-[1px]">
+                                                                <Spinner size={22} />
+
+                                                                <span className="text-[11px] text-white/90">
                                                             {uploading ?
                                                                 `Enviando ${photoProgress}%` :
                                                                 `Excluindo…`}
                                                         </span>
-                                                </div>
-                                            )}
+                                                            </div>
+                                                        )}
 
-                                            {photoProgress && (
-                                                <div className="absolute inset-x-0 bottom-0 h-1 bg-black/20">
-                                                    <div className="h-full bg-white/80" style={{ width: `${photoProgress}%` }} />
-                                                </div>
-                                            )}
+                                                        {photoProgress && (
+                                                            <div className="absolute inset-x-0 bottom-0 h-1 bg-black/20">
+                                                                <div className="h-full bg-white/80" style={{ width: `${photoProgress}%` }} />
+                                                            </div>
+                                                        )}
 
-                                            { (!p.urlThumb || !p.urlWatermark) && (
-                                            <div className="absolute bottom-2 left-2 z-20">
+                                                        { (!p.urlThumb || !p.urlWatermark) && (
+                                                            <div className="absolute bottom-2 left-2 z-20">
                                                 <span className="group inline-flex items-center rounded bg-black/50 px-1 py-1 text-[10px] font-semibold tracking-wide text-white shadow leading-none">
                                                     <Clock size={16} className="shrink-0 text-white mr-1" strokeWidth={2} aria-hidden />
                                                     Processando
                                                 </span>
-                                            </div>
-                                            )}
+                                                            </div>
+                                                        )}
 
-                                            <div className="absolute left-2 top-2 z-20">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setCoverPhoto(p.id)}
-                                                    disabled={inflight > 0}
-                                                    aria-label={isCover ? "Capa atual" : "Usar como capa"}
-                                                    className={
-                                                    "transition group-hover:opacity-100 group inline-flex items-center rounded px-1 py-1 text-[10px] font-semibold tracking-wide text-white shadow leading-none " +
-                                                        (isCover ? 'bg-emerald-600/90' : 'opacity-0 bg-black/70 cursor-pointer')
-                                                    }
-                                                >
-                                                    <Wallpaper size={16} className="shrink-0 text-white" strokeWidth={2} aria-hidden />
-                                                    {isCover && (
-                                                        <span className="ml-1 overflow-hidden">
+                                                        <div className="absolute left-2 top-2 z-20">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setCoverPhoto(p.id)}
+                                                                disabled={inflight > 0}
+                                                                aria-label={isCover ? "Capa atual" : "Usar como capa"}
+                                                                className={
+                                                                    "transition group-hover:opacity-100 group inline-flex items-center rounded px-1 py-1 text-[10px] font-semibold tracking-wide text-white shadow leading-none " +
+                                                                    (isCover ? 'bg-emerald-600/90' : 'opacity-0 bg-black/70 cursor-pointer')
+                                                                }
+                                                            >
+                                                                <Wallpaper size={16} className="shrink-0 text-white" strokeWidth={2} aria-hidden />
+                                                                {isCover && (
+                                                                    <span className="ml-1 overflow-hidden">
                                                             Capa
                                                         </span>
-                                                    )}
-                                                </button>
-                                            </div>
+                                                                )}
+                                                            </button>
+                                                        </div>
 
-                                            <button
-                                                type="button"
-                                                aria-label={`Remover foo`}
-                                                onClick={() => removePersistedPhoto(p.id)}
-                                                className="absolute right-2 top-2 z-20 rounded-full bg-black/70 p-1 text-white opacity-0 transition group-hover:opacity-100 disabled:opacity-50"
-                                                disabled={inflight > 0}
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </button>
-                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            aria-label={`Remover foo`}
+                                                            onClick={() => removePersistedPhoto(p.id)}
+                                                            className="absolute right-2 top-2 z-20 rounded-full bg-black/70 p-1 text-white opacity-0 transition group-hover:opacity-100 disabled:opacity-50"
+                                                            disabled={inflight > 0}
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
 
-                                        <div className="flex items-center justify-between gap-2 border-t bg-muted/60 px-2 py-1 text-[11px] text-muted-foreground">
+                                                    <div className="flex items-center justify-between gap-2 border-t bg-muted/60 px-2 py-1 text-[11px] text-muted-foreground">
                       <span className="line-clamp-1 break-all" title={p.originalName ?? ''}>
                         {p.originalName}
                       </span>
-                                            <span className="shrink-0">{human(p.sizeBytes ?? 0)}</span>
-                                        </div>
-                                    </li>
-                                )
-                            })}
-                        </ul>
+                                                        <span className="shrink-0">{human(p.sizeBytes ?? 0)}</span>
+                                                    </div>
+                                                </li>
+                                            )
+                                        })}
+                                    </ul>
+                                )}
+                            </div>
+                        </>
                     )}
-                </div>
-                </>
-                )}
-            </CardContent>
+                </CardContent>
 
-            <CardFooter className="flex justify-end gap-2 mt-4">
-                <Button asChild variant="outline"><Link href={`/albums`}>Cancelar</Link></Button>
-                <Button type="submit" disabled={disabledAll}>
-                    {saving ? (isNew ? 'Criando…' : 'Salvando…') : inflight > 0 ? 'Aguarde envio…' : (isNew ? 'Criar' : 'Salvar alterações')}
-                </Button>
-            </CardFooter>
-
-            <LoadingOverlay show={saving} label={isNew ? "Criando album…" : "Salvando alterações…"} />
-        </form>
+                <LoadingOverlay show={saving} label={isNew ? "Criando album…" : "Salvando alterações…"} />
+            </form>
+        </Card>
     )
 }

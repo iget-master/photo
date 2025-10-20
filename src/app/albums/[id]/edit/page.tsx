@@ -3,12 +3,12 @@ import prisma from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { notFound, redirect } from 'next/navigation'
-import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import AlbumEditor from '@/components/AlbumEditor'
 import cuid from "cuid";
 import {ParamsWithId} from "@/types/params/id";
+import {ChevronLeft, ChevronRight} from "lucide-react";
 
 export const dynamic = 'force-dynamic'
 
@@ -61,22 +61,17 @@ export default async function EditAlbumPage({ params }: ParamsWithId) {
 
     return (
         <div className="mx-auto max-w-6xl p-6 space-y-6">
-            <div className="flex items-center justify-between gap-3">
-                <h1 className="truncate text-2xl font-semibold tracking-tight">
-                    {initialData.meta.new ? `Criar novo álbum` : `Editar álbum — ${initialData.albumName}`}
+            <div className="flex items-center justify-start gap-3">
+                <h1 className="flex items-center truncate text-xl font-semibold tracking-tight">
+                    <Link href="/albums">
+                        Albuns
+                    </Link>
+                    <ChevronRight className="h-4 w-4 mx-1 opacity-50"/>
+                    {initialData.meta.new ? `Novo` : initialData.albumName}
                 </h1>
-                <div className="flex gap-2">
-                    <Button asChild variant="outline"><Link href="/albums">Voltar</Link></Button>
-                </div>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg">Dados do álbum</CardTitle>
-                </CardHeader>
-
-                <AlbumEditor initial={initialData} />
-            </Card>
+            <AlbumEditor initial={initialData} />
         </div>
     )
 }
