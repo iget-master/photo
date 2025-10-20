@@ -30,9 +30,7 @@ export function QrCardsDialog({
     open?: boolean;
     setOpenAction?: (open: boolean) => void;
 }) {
-    if (typeof open === 'undefined' || typeof setOpen === 'undefined') {
-        [open, setOpen] = React.useState(false);
-    }
+    const [internalOpen, setInternalOpen] = React.useState(false);
 
     const [title, setTitle] = React.useState(defaultTitle);
     const [footer, setFooter] = React.useState(defaultFooter);
@@ -67,7 +65,11 @@ export function QrCardsDialog({
             a.remove();
             URL.revokeObjectURL(url);
 
-            setOpen!(false);
+            if (setOpen) {
+                setOpen(false)
+            } else {
+                setInternalOpen(false)
+            }
         } catch (e: any) {
             setError(e?.message || "Falha ao gerar PDF");
         } finally {
@@ -76,7 +78,7 @@ export function QrCardsDialog({
     }
 
     return (
-        <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Root open={setOpen ? open : internalOpen} onOpenChange={setOpen ? setOpen : setInternalOpen}>
             <Dialog.Trigger asChild>
                 {noButton || (
                 <Button
