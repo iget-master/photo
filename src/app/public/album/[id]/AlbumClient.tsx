@@ -47,7 +47,7 @@ export default function AlbumClient({ albumId, albumName, unitPriceBRL, photos, 
             const raw = localStorage.getItem(LS_KEY(albumId))
             if (raw) setSelected(new Set(JSON.parse(raw)))
         } catch {}
-        fetch(`/api/p/${albumId}/visit`, { method: 'POST' }).catch(() => {})
+        fetch(`/api/albums/${albumId}/visit`, { method: 'POST' }).catch(() => {})
     }, [albumId])
 
     React.useEffect(() => {
