@@ -179,7 +179,7 @@ export default async function AlbumsPage({
                 <CardContent>
                     <Table>
                         <TableHeader>
-                            <TableRow>
+                            <TableRow className="hover:bg-transparent">
                                 <TableHead className="w-[100%]">Álbum</TableHead>
                                 <TableHead className="hidden sm:table-cell text-center">Fotos</TableHead>
                                 <TableHead className="hidden sm:table-cell text-center">Visitas</TableHead>
