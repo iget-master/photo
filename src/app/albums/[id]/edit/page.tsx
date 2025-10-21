@@ -7,6 +7,8 @@ import AlbumEditor from '@/components/AlbumEditor'
 import cuid from "cuid";
 import {ParamsWithId} from "@/types/params/id";
 import {ChevronRight} from "lucide-react";
+import Header from "@/components/app/header";
+import * as React from "react";
 
 export const dynamic = 'force-dynamic'
 
@@ -58,6 +60,8 @@ export default async function EditAlbumPage({ params }: ParamsWithId) {
     }
 
     return (
+        <>
+        <Header/>
         <div className="mx-auto max-w-6xl p-6 space-y-6">
             <div className="flex items-center justify-start gap-3">
                 <h1 className="flex items-center truncate text-xl font-semibold tracking-tight">
@@ -71,5 +75,6 @@ export default async function EditAlbumPage({ params }: ParamsWithId) {
 
             <AlbumEditor initial={initialData} />
         </div>
+        </>
     )
 }

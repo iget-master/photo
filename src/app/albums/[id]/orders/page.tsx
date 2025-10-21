@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import ApproveButton from './approve-button'
 import BackButton from "@/components/BackButton";
+import Header from "@/components/app/header";
+import * as React from "react";
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -32,6 +34,8 @@ export default async function AlbumOrdersPage(
     if (!orders) return notFound();
 
     return (
+        <>
+        <Header/>
         <div className="mx-auto max-w-6xl p-6 space-y-6">
             <div className="flex items-center gap-2">
                 <BackButton />
@@ -80,5 +84,6 @@ export default async function AlbumOrdersPage(
                 </CardContent>
             </Card>
         </div>
+        </>
     )
 }

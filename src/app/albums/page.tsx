@@ -12,6 +12,7 @@ import {Link as LinkIcon, Receipt, Pencil, MoreVertical} from 'lucide-react'
 import {QrCardsDialog} from "@/components/QrCardsDialog";
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu";
 import * as React from "react";
+import Header from "@/components/app/header";
 
 export const dynamic = 'force-dynamic'
 
@@ -121,6 +122,8 @@ export default async function AlbumsPage({
     }
 
     return (
+        <>
+        <Header/>
         <div className="mx-auto max-w-6xl p-6">
             <div className="mb-6 flex flex-wrap items-center justify-end gap-3">
                 <h1 className="text-2xl font-semibold tracking-tight grow">Meus Álbuns</h1>
@@ -311,5 +314,6 @@ export default async function AlbumsPage({
                 </CardContent>
             </Card>
         </div>
+        </>
     )
 }
